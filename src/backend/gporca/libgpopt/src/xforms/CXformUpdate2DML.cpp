@@ -15,6 +15,8 @@
 
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CLogicalPartitionSelector.h"
+#include "gpopt/operators/CLogicalProject.h"
+#include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/operators/CLogicalSplit.h"
 #include "gpopt/operators/CLogicalUpdate.h"
 #include "gpopt/operators/CPatternLeaf.h"
@@ -37,11 +39,25 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CXformUpdate2DML::CXformUpdate2DML(CMemoryPool *mp)
+	//	: CXformExploration(
+	//		  // pattern
+	//		  GPOS_NEW(mp) CExpression(
+	//			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
+	//			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
 	: CXformExploration(
 		  // pattern
 		  GPOS_NEW(mp) CExpression(
 			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
-			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CLogicalProject(mp),  // relational child
+				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(
+												   mp)),  // scalar child for offset
+				  GPOS_NEW(mp) CExpression(
+					  mp, GPOS_NEW(mp)
+							  CScalarProjectList(mp),
+					  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(
+													   mp)))	 // scalar child for number of rows
+				  )))
 {
 }
 
@@ -90,7 +106,11 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 
 	// child of update operator
 	CExpression *pexprChild = (*pexpr)[0];
+
+	GPOS_ASSERT(pexprChild->Pop()->Eopid() == CLogicalUpdate::EopLogicalProject);
 	pexprChild->AddRef();
+
+
 
 	IMDId *rel_mdid = ptabdesc->MDId();
 	if (CXformUtils::FTriggersExist(CLogicalDML::EdmlUpdate, ptabdesc,
@@ -121,57 +141,14 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 
 	CExpression *pexprProjList = GPOS_NEW(mp)
 		CExpression(mp, GPOS_NEW(mp) CScalarProjectList(mp), pexprProjElem);
-	CExpression *pexprSplit = GPOS_NEW(mp) CExpression(
-		mp,
-		GPOS_NEW(mp) CLogicalSplit(mp, pdrgpcrDelete, pdrgpcrInsert, pcrCtid,
-								   pcrSegmentId, pcrAction, pcrTupleOid),
-		pexprChild, pexprProjList);
 
-	// add assert checking that no NULL values are inserted for nullable columns or no check constraints are violated
-	COptimizerConfig *optimizer_config =
-		COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
-	CExpression *pexprAssertConstraints;
-	if (optimizer_config->GetHint()->FEnforceConstraintsOnDML())
-	{
-		pexprAssertConstraints = CXformUtils::PexprAssertConstraints(
-			mp, pexprSplit, ptabdesc, pdrgpcrInsert);
-	}
-	else
-	{
-		pexprAssertConstraints = pexprSplit;
-	}
 
-	// generate oid column and project operator
-	CExpression *pexprProject = nullptr;
-	CColRef *pcrTableOid = nullptr;
-	if (ptabdesc->IsPartitioned())
-	{
-		// generate a partition selector
-		pexprProject = CXformUtils::PexprLogicalPartitionSelector(
-			mp, ptabdesc, pdrgpcrInsert, pexprAssertConstraints);
-		pcrTableOid = CLogicalPartitionSelector::PopConvert(pexprProject->Pop())
-						  ->PcrOid();
-	}
-	else
-	{
-		// generate a project operator
-		IMDId *pmdidTable = ptabdesc->MDId();
 
-		OID oidTable = CMDIdGPDB::CastMdid(pmdidTable)->Oid();
-		CExpression *pexprOid = CUtils::PexprScalarConstOid(mp, oidTable);
-
-		pexprProject =
-			CUtils::PexprAddProjection(mp, pexprAssertConstraints, pexprOid);
-
-		CExpression *pexprPrL = (*pexprProject)[1];
-		pcrTableOid = CUtils::PcrFromProjElem((*pexprPrL)[0]);
-	}
-
-	GPOS_ASSERT(nullptr != pcrTableOid);
 
 	const ULONG num_cols = pdrgpcrInsert->Size();
 
 	CBitSet *pbsModified = GPOS_NEW(mp) CBitSet(mp, ptabdesc->ColumnCount());
+	BOOL split_update = false;
 	for (ULONG ul = 0; ul < num_cols; ul++)
 	{
 		CColRef *pcrInsert = (*pdrgpcrInsert)[ul];
@@ -182,21 +159,114 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 			// from the corresponding insert column, then we're modifying the column
 			// at that position
 			pbsModified->ExchangeSet(ul);
+			if (pcrDelete->IsDistCol()) {
+				split_update = true;
+			}
 		}
 	}
-	// create logical DML
-	ptabdesc->AddRef();
-	pdrgpcrDelete->AddRef();
-	CExpression *pexprDML = GPOS_NEW(mp) CExpression(
-		mp,
-		GPOS_NEW(mp) CLogicalDML(
-			mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
-			pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
-		pexprProject);
 
-	// TODO:  - Oct 30, 2012; detect and handle AFTER triggers on update
+	CExpression *pexprProject = nullptr;
 
-	pxfres->Add(pexprDML);
+
+	if (!split_update && (*pexprChild)[0]->Pop()->Eopid() == CLogicalGet::EopLogicalGet) {
+		// New thing
+		IMDId *pmdidTable  = ptabdesc->MDId();
+
+		OID oidTable = CMDIdGPDB::CastMdid(pmdidTable)->Oid();
+		CExpression *pexprOid = CUtils::PexprScalarConstOid(mp, oidTable);
+		pexprProject = GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalProject(mp), (*pexprChild)[0], (*pexprChild)[1]);
+
+		CExpression *pexprProjected = (pexprOid);
+		GPOS_ASSERT(pexprProjected->Pop()->FScalar());
+
+		// generate a computed column with scalar expression type
+		CScalar *popScalar = CScalar::PopConvert(pexprProjected->Pop());
+		const IMDType *pmdtype1 =
+			md_accessor->RetrieveType(popScalar->MdidType());
+		CColRef *pcrTableOid =
+			col_factory->PcrCreate(pmdtype1, popScalar->TypeModifier());
+
+		CExpression *pexprDML = GPOS_NEW(mp) CExpression(
+			mp,
+			GPOS_NEW(mp) CLogicalDML(
+				mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
+				pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
+			pexprProject);
+
+		// TODO:  - Oct 30, 2012; detect and handle AFTER triggers on update
+
+		pxfres->Add(pexprDML);
+
+	}
+	else {
+		// Existing thing
+		CExpression *pexprSplit = GPOS_NEW(mp) CExpression(
+			mp,
+			GPOS_NEW(mp) CLogicalSplit(mp, pdrgpcrDelete, pdrgpcrInsert, pcrCtid,
+									   pcrSegmentId, pcrAction, pcrTupleOid),
+			pexprChild, pexprProjList);
+
+		// add assert checking that no NULL values are inserted for nullable columns or no check constraints are violated
+		COptimizerConfig *optimizer_config =
+			COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
+		CExpression *pexprAssertConstraints;
+		if (optimizer_config->GetHint()->FEnforceConstraintsOnDML())
+		{
+			pexprAssertConstraints = CXformUtils::PexprAssertConstraints(
+				mp, pexprSplit, ptabdesc, pdrgpcrInsert);
+		}
+		else
+		{
+			pexprAssertConstraints = pexprSplit;
+		}
+
+		// generate oid column and project operator
+
+		CColRef *pcrTableOid = nullptr;
+		if (ptabdesc->IsPartitioned())
+		{
+			// generate a partition selector
+			pexprProject = CXformUtils::PexprLogicalPartitionSelector(
+				mp, ptabdesc, pdrgpcrInsert, pexprAssertConstraints);
+			pcrTableOid = CLogicalPartitionSelector::PopConvert(pexprProject->Pop())
+							  ->PcrOid();
+		}
+		else
+		{
+			// generate a project operator
+			IMDId *pmdidTable = ptabdesc->MDId();
+
+			OID oidTable = CMDIdGPDB::CastMdid(pmdidTable)->Oid();
+			CExpression *pexprOid = CUtils::PexprScalarConstOid(mp, oidTable);
+
+			pexprProject =
+				CUtils::PexprAddProjection(mp, pexprAssertConstraints, pexprOid);
+
+			CExpression *pexprPrL = (*pexprProject)[1];
+			pcrTableOid = CUtils::PcrFromProjElem((*pexprPrL)[0]);
+		}
+
+		GPOS_ASSERT(nullptr != pcrTableOid);
+
+
+		// create logical DML
+		ptabdesc->AddRef();
+		pdrgpcrDelete->AddRef();
+		CExpression *pexprDML = GPOS_NEW(mp) CExpression(
+			mp,
+			GPOS_NEW(mp) CLogicalDML(
+				mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
+				pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
+			pexprProject);
+
+		// TODO:  - Oct 30, 2012; detect and handle AFTER triggers on update
+
+		pxfres->Add(pexprDML);
+
+	}
+
+
+
 }
 
 // EOF
