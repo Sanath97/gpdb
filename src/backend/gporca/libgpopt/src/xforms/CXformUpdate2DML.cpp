@@ -39,25 +39,25 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CXformUpdate2DML::CXformUpdate2DML(CMemoryPool *mp)
-	//	: CXformExploration(
-	//		  // pattern
-	//		  GPOS_NEW(mp) CExpression(
-	//			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
-	//			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
-	: CXformExploration(
-		  // pattern
-		  GPOS_NEW(mp) CExpression(
-			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
+		: CXformExploration(
+			  // pattern
 			  GPOS_NEW(mp) CExpression(
-				  mp, GPOS_NEW(mp) CLogicalProject(mp),  // relational child
-				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(
-												   mp)),  // scalar child for offset
-				  GPOS_NEW(mp) CExpression(
-					  mp, GPOS_NEW(mp)
-							  CScalarProjectList(mp),
-					  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(
-													   mp)))	 // scalar child for number of rows
-				  )))
+				  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
+				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
+//	: CXformExploration(
+//		  // pattern
+//		  GPOS_NEW(mp) CExpression(
+//			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
+//			  GPOS_NEW(mp) CExpression(
+//				  mp, GPOS_NEW(mp) CLogicalProject(mp),  // relational child
+//				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(
+//												   mp)),  // scalar child for offset
+//				  GPOS_NEW(mp) CExpression(
+//					  mp, GPOS_NEW(mp)
+//							  CPatternLeaf(mp)
+////					  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(
+////													   mp)))	 // scalar child for number of rows
+					  //))))
 {
 }
 
@@ -168,13 +168,14 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	CExpression *pexprProject = nullptr;
 
 
-	if (!split_update && (*pexprChild)[0]->Pop()->Eopid() == CLogicalGet::EopLogicalGet) {
+	// && (*pexprChild)[0]->Pop()->Eopid() == CLogicalGet::EopLogicalGet
+	if (!split_update ) {
 		// New thing
 		IMDId *pmdidTable  = ptabdesc->MDId();
 
 		OID oidTable = CMDIdGPDB::CastMdid(pmdidTable)->Oid();
 		CExpression *pexprOid = CUtils::PexprScalarConstOid(mp, oidTable);
-		pexprProject = GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalProject(mp), (*pexprChild)[0], (*pexprChild)[1]);
+		//pexprProject = GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalProject(mp), (*pexprChild)[0], (*pexprChild)[1]);
 
 		CExpression *pexprProjected = (pexprOid);
 		GPOS_ASSERT(pexprProjected->Pop()->FScalar());
@@ -189,9 +190,9 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 		CExpression *pexprDML = GPOS_NEW(mp) CExpression(
 			mp,
 			GPOS_NEW(mp) CLogicalDML(
-				mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
+				mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrInsert, pbsModified,
 				pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
-			pexprProject);
+			pexprChild);
 
 		// TODO:  - Oct 30, 2012; detect and handle AFTER triggers on update
 
