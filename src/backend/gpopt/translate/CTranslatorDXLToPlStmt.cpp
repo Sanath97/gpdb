@@ -4025,9 +4025,10 @@ CTranslatorDXLToPlStmt::TranslateDXLDml(
 	// anything in GPDB.
 	if (m_cmd_type == CMD_UPDATE)
 	{
-//		(void) AddJunkTargetEntryForColId(&dml_target_list, &child_context,
-//										  phy_dml_dxlop->ActionColId(),
-//										  "DMLAction");
+     // Commenting out Action column requirement, as In-place update will not need it.
+     //	(void) AddJunkTargetEntryForColId(&dml_target_list, &child_context,
+     //										  phy_dml_dxlop->ActionColId(),
+     //										  "DMLAction");
 	}
 
 	if (m_cmd_type == CMD_UPDATE || m_cmd_type == CMD_DELETE)
@@ -4040,8 +4041,9 @@ CTranslatorDXLToPlStmt::TranslateDXLDml(
 	}
 	if (m_cmd_type == CMD_UPDATE && phy_dml_dxlop->IsOidsPreserved())
 	{
-//		AddJunkTargetEntryForColId(&dml_target_list, &child_context,
-//								   phy_dml_dxlop->GetTupleOid(), "oid");
+        // Commenting out OID column requirement, as In-place update will not need it.
+        // AddJunkTargetEntryForColId(&dml_target_list, &child_context,
+        // 							phy_dml_dxlop->GetTupleOid(), "oid");
 	}
 
 	// Add a Result node on top of the child plan, to coerce the target
@@ -4075,6 +4077,7 @@ CTranslatorDXLToPlStmt::TranslateDXLDml(
 	// ORCA plans all updates as split updates
 	if (m_cmd_type == CMD_UPDATE)
 	{
+        // Modifying value for Split update to make it false.
 		dml->isSplitUpdates = ListMake1Int((int) false);
 	}
 

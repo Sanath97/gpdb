@@ -559,20 +559,14 @@ CPhysicalDML::ComputeRequiredLocalColumns(CMemoryPool *mp)
 
 	// include source columns
 	m_pcrsRequiredLocal->Include(m_pdrgpcrSource);
-	//m_pcrsRequiredLocal->Include(m_pcrAction);
-//	CColRef *mod_col = nullptr;
-//	for (ULONG i=0; i < m_pdrgpcrSource->Size();i++) {
-//		if (m_pbsModified->Get(i)) {
-//			mod_col = (*m_pdrgpcrSource)[i];
-//			m_pcrsRequiredLocal->Exclude(mod_col);
-//
-//		}
-//	}
+	// Commented out Action column from required local columns as In-Place update do not need it.
+	// m_pcrsRequiredLocal->Include(m_pcrAction);
 
 
 	if (m_pcrTableOid != nullptr)
 	{
-		//m_pcrsRequiredLocal->Include(m_pcrTableOid);
+		// Commented out tableOid column from required local columns as In-Place update do not need it.
+		// m_pcrsRequiredLocal->Include(m_pcrTableOid);
 	}
 
 	if (CLogicalDML::EdmlDelete == m_edmlop ||
@@ -584,7 +578,8 @@ CPhysicalDML::ComputeRequiredLocalColumns(CMemoryPool *mp)
 
 	if (nullptr != m_pcrTupleOid)
 	{
-		//m_pcrsRequiredLocal->Include(m_pcrTupleOid);
+		// Commented out tupleOid from required local columns as In-Place update do not need it.
+		// m_pcrsRequiredLocal->Include(m_pcrTupleOid);
 	}
 }
 

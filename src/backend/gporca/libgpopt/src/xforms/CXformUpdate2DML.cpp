@@ -44,20 +44,6 @@ CXformUpdate2DML::CXformUpdate2DML(CMemoryPool *mp)
 			  GPOS_NEW(mp) CExpression(
 				  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
 				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
-//	: CXformExploration(
-//		  // pattern
-//		  GPOS_NEW(mp) CExpression(
-//			  mp, GPOS_NEW(mp) CLogicalUpdate(mp),
-//			  GPOS_NEW(mp) CExpression(
-//				  mp, GPOS_NEW(mp) CLogicalProject(mp),  // relational child
-//				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(
-//												   mp)),  // scalar child for offset
-//				  GPOS_NEW(mp) CExpression(
-//					  mp, GPOS_NEW(mp)
-//							  CPatternLeaf(mp)
-////					  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(
-////													   mp)))	 // scalar child for number of rows
-					  //))))
 {
 }
 
@@ -107,10 +93,7 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	// child of update operator
 	CExpression *pexprChild = (*pexpr)[0];
 
-	GPOS_ASSERT(pexprChild->Pop()->Eopid() == CLogicalUpdate::EopLogicalProject);
 	pexprChild->AddRef();
-
-
 
 	IMDId *rel_mdid = ptabdesc->MDId();
 	if (CXformUtils::FTriggersExist(CLogicalDML::EdmlUpdate, ptabdesc,
@@ -143,11 +126,11 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 		CExpression(mp, GPOS_NEW(mp) CScalarProjectList(mp), pexprProjElem);
 
 
-
-
 	const ULONG num_cols = pdrgpcrInsert->Size();
 
 	CBitSet *pbsModified = GPOS_NEW(mp) CBitSet(mp, ptabdesc->ColumnCount());
+	// Traversing all the columns and checking if any of the modified columns are
+	// distributed columns to decide if Split is required.
 	BOOL split_update = false;
 	for (ULONG ul = 0; ul < num_cols; ul++)
 	{
@@ -167,10 +150,9 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 
 	CExpression *pexprProject = nullptr;
 
-
-	// && (*pexprChild)[0]->Pop()->Eopid() == CLogicalGet::EopLogicalGet
 	if (!split_update ) {
-		// New thing
+		// Just Transforming CLogicalUpdate to CLogicalDML without adding any
+		// Split operator.
 		IMDId *pmdidTable  = ptabdesc->MDId();
 
 		OID oidTable = CMDIdGPDB::CastMdid(pmdidTable)->Oid();
@@ -200,7 +182,7 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 
 	}
 	else {
-		// Existing thing
+		// Old transformation changes where we added Split operator.
 		CExpression *pexprSplit = GPOS_NEW(mp) CExpression(
 			mp,
 			GPOS_NEW(mp) CLogicalSplit(mp, pdrgpcrDelete, pdrgpcrInsert, pcrCtid,
@@ -265,9 +247,7 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 		pxfres->Add(pexprDML);
 
 	}
-
-
-
+	
 }
 
 // EOF
