@@ -205,6 +205,9 @@ private:
 												 CColRefArray *pdrgpcrOutput,
 												 ColRefToUlongMap *col_mapping);
 
+	static CExpression *ConvertSplitUpdateToInPlaceUpdate(CMemoryPool *mp,
+														  CExpression *expr);
+
 	// private ctor
 	CExpressionPreprocessor();
 

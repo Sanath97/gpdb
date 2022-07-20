@@ -93,14 +93,14 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	pexprChild->AddRef();
 
 	IMDId *rel_mdid = ptabdesc->MDId();
-	if (CXformUtils::FTriggersExist(CLogicalDML::EdmlUpdate, ptabdesc,
+	if (CXformUtils::FTriggersExist(CLogicalDML::EdmlSplitUpdate, ptabdesc,
 									true /*fBefore*/))
 	{
 		rel_mdid->AddRef();
 		pdrgpcrDelete->AddRef();
 		pdrgpcrInsert->AddRef();
 		pexprChild = CXformUtils::PexprRowTrigger(
-			mp, pexprChild, CLogicalDML::EdmlUpdate, rel_mdid, true /*fBefore*/,
+			mp, pexprChild, CLogicalDML::EdmlSplitUpdate, rel_mdid, true /*fBefore*/,
 			pdrgpcrDelete, pdrgpcrInsert);
 	}
 
@@ -190,7 +190,7 @@ CXformUpdate2DML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	CExpression *pexprDML = GPOS_NEW(mp) CExpression(
 		mp,
 		GPOS_NEW(mp) CLogicalDML(
-			mp, CLogicalDML::EdmlUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
+			mp, CLogicalDML::EdmlSplitUpdate, ptabdesc, pdrgpcrDelete, pbsModified,
 			pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
 		pexprProject);
 

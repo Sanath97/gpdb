@@ -32,6 +32,7 @@
 #include "gpopt/operators/CLogicalDynamicGet.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalInPlaceUpdate.h"
 #include "gpopt/operators/CLogicalLimit.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
 #include "gpopt/operators/CLogicalProject.h"
@@ -39,6 +40,7 @@
 #include "gpopt/operators/CLogicalSetOp.h"
 #include "gpopt/operators/CLogicalUnion.h"
 #include "gpopt/operators/CLogicalUnionAll.h"
+#include "gpopt/operators/CLogicalUpdate.h"
 #include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/COrderedAggPreprocessor.h"
 #include "gpopt/operators/CPredicateUtils.h"
@@ -2705,6 +2707,44 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 	return cnstr;
 }
 
+CExpression *
+CExpressionPreprocessor::ConvertSplitUpdateToInPlaceUpdate(CMemoryPool GPOS_UNUSED *mp, CExpression *pexpr) {
+	GPOS_ASSERT(nullptr != mp);
+	GPOS_ASSERT(nullptr != pexpr);
+	COperator *pop = pexpr->Pop();
+	if (COperator::EopLogicalUpdate == pop->Eopid()) {
+		CLogicalUpdate *popUpdate =
+			CLogicalUpdate::PopConvert(pop);
+		CColRefArray *pdrgpcrInsert = popUpdate->PdrgpcrInsert();
+		CColRefArray *pdrgpcrDelete = popUpdate->PdrgpcrDelete();
+		const ULONG num_cols = pdrgpcrInsert->Size();
+		BOOL split_update = false;
+		for (ULONG ul = 0; ul < num_cols; ul++)
+		{
+			CColRef *pcrInsert = (*pdrgpcrInsert)[ul];
+			CColRef *pcrDelete = (*pdrgpcrDelete)[ul];
+			if (pcrInsert != pcrDelete && pcrDelete->IsDistCol()) {
+				split_update = true;
+				break;
+			}
+		}
+		if (!split_update) {
+//			CColRef *pcrCtid = popUpdate->PcrCtid();
+//			CColRef *pcrSegmentId = popUpdate->PcrSegmentId();
+//			CTableDescriptor *ptabdesc = popUpdate->Ptabdesc();
+			CExpression *pexprChild = (*pexpr)[0];
+			CExpression *pexpr1 = GPOS_NEW(mp) CExpression(
+				mp,
+				GPOS_NEW(mp) CLogicalInPlaceUpdate(
+					mp, popUpdate->Ptabdesc(), pdrgpcrInsert,
+					popUpdate->PcrCtid(), popUpdate->PcrSegmentId()),
+				pexprChild);
+			return pexpr1;
+		}
+	}
+	return pexpr;
+}
+
 // main driver, pre-processing of input logical expression
 CExpression *
 CExpressionPreprocessor::PexprPreprocess(
@@ -2901,7 +2941,12 @@ CExpressionPreprocessor::PexprPreprocess(
 	GPOS_CHECK_ABORT;
 	pexprPrunedPartitions->Release();
 
-	return pexprNormalized2;
+	CExpression *pexprSplitUpdateToInplace =
+		ConvertSplitUpdateToInPlaceUpdate(mp, pexprNormalized2);
+	GPOS_CHECK_ABORT;
+	pexprNormalized2->Release();
+
+	return pexprSplitUpdateToInplace;
 }
 
 // EOF
