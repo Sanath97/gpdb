@@ -76,7 +76,7 @@ CLogicalDML::CLogicalDML(CMemoryPool *mp, EDMLOperator edmlop,
 	GPOS_ASSERT(nullptr != pdrgpcrSource);
 	GPOS_ASSERT(nullptr != pbsModified);
 	GPOS_ASSERT(nullptr != pcrAction);
-	GPOS_ASSERT_IMP(EdmlDelete == edmlop || EdmlUpdate == edmlop,
+	GPOS_ASSERT_IMP(EdmlDelete == edmlop || CLogicalDML::EdmlInPlaceUpdate == m_edmlop || CLogicalDML::EdmlSplitUpdate == m_edmlop,
 					nullptr != pcrCtid && nullptr != pcrSegmentId);
 
 	m_pcrsLocalUsed->Include(m_pdrgpcrSource);
@@ -162,7 +162,7 @@ CLogicalDML::HashValue() const
 	ulHash =
 		gpos::CombineHashes(ulHash, CUtils::UlHashColArray(m_pdrgpcrSource));
 
-	if (EdmlDelete == m_edmlop || EdmlUpdate == m_edmlop)
+	if (EdmlDelete == m_edmlop || EdmlSplitUpdate == m_edmlop || EdmlInPlaceUpdate == m_edmlop)
 	{
 		ulHash = gpos::CombineHashes(ulHash, gpos::HashPtr<CColRef>(m_pcrCtid));
 		ulHash =
@@ -371,7 +371,7 @@ CLogicalDML::OsPrint(IOstream &os) const
 		os << ")";
 	}
 
-	if (EdmlDelete == m_edmlop || EdmlUpdate == m_edmlop)
+	if (EdmlDelete == m_edmlop || EdmlSplitUpdate == m_edmlop || EdmlInPlaceUpdate == m_edmlop)
 	{
 		os << ", ";
 		m_pcrCtid->OsPrint(os);

@@ -1476,7 +1476,8 @@ CXformUtils::FTriggerApplies(CLogicalDML::EDMLOperator edmlop,
 {
 	return ((CLogicalDML::EdmlInsert == edmlop && pmdtrigger->IsInsert()) ||
 			(CLogicalDML::EdmlDelete == edmlop && pmdtrigger->IsDelete()) ||
-			(CLogicalDML::EdmlUpdate == edmlop && pmdtrigger->IsUpdate()));
+			(CLogicalDML::EdmlSplitUpdate == edmlop && pmdtrigger->IsUpdate()) ||
+			(CLogicalDML::EdmlInPlaceUpdate == edmlop && pmdtrigger->IsUpdate()));
 }
 
 //---------------------------------------------------------------------------
@@ -1607,7 +1608,8 @@ CXformUtils::PexprRowTrigger(CMemoryPool *mp, CExpression *pexprChild,
 		case CLogicalDML::EdmlDelete:
 			type |= GPMD_TRIGGER_DELETE;
 			break;
-		case CLogicalDML::EdmlUpdate:
+		case CLogicalDML::EdmlInPlaceUpdate:
+		case CLogicalDML::EdmlSplitUpdate:
 			type |= GPMD_TRIGGER_UPDATE;
 			break;
 		default:
@@ -3326,7 +3328,7 @@ CXformUtils::CreateBitmapIndexProbesWithOrWithoutPredBreakdown(
 				pmp, pmda, pexprPred, ptabdesc, pmdrel, pdrgpcrOutput, pcrsReqd,
 				pcrsOuterRefs, &pexprRecheckLocal, &pexprResidualLocal,
 				isAPartialPredicateOrArrayCmp  // for partial preds or array comps
-				// we want to consider btree indexes
+											   // we want to consider btree indexes
 			);
 
 			// since we did not break the conjunct tree, the index path found may cover a part of the

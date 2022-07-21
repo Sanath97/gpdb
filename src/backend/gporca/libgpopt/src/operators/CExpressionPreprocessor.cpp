@@ -32,14 +32,15 @@
 #include "gpopt/operators/CLogicalDynamicGet.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalInPlaceUpdate.h"
 #include "gpopt/operators/CLogicalLimit.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
 #include "gpopt/operators/CLogicalProject.h"
-#include "gpopt/operators/CLogicalSelect.h"
 #include "gpopt/operators/CLogicalSequenceProject.h"
 #include "gpopt/operators/CLogicalSetOp.h"
 #include "gpopt/operators/CLogicalUnion.h"
 #include "gpopt/operators/CLogicalUnionAll.h"
+#include "gpopt/operators/CLogicalUpdate.h"
 #include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/COrderedAggPreprocessor.h"
 #include "gpopt/operators/CPredicateUtils.h"
@@ -2706,196 +2707,43 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 	return cnstr;
 }
 
-// Collapse a select over a project and update column reference.
-static CExpression *
-CollapseSelectAndReplaceColref(CMemoryPool *mp, CExpression *pexpr,
-							   CColRef *pcolref, CExpression *pprojExpr)
-{
-	// remove the logical project
-	//
-	// Input:
-	// +--CLogicalSelect (x = 'meh')
-	//    +--CLogicalProject (col1...n, expr as x)
-	//       +-- CLogicalNAryJoin
-	// Output:
-	// +--CLogicalSelect (expr = 'meh')
-	//    +-- CLogicalNAryJoin
-	if (pexpr->Pop()->Eopid() == COperator::EopLogicalSelect &&
-		(*pexpr)[0]->Pop()->Eopid() == COperator::EopLogicalProject &&
-		(*(*pexpr)[0])[0]->Pop()->Eopid() == COperator::EopLogicalNAryJoin)
-	{
-		(*(*pexpr)[0])[0]->AddRef();
-		return GPOS_NEW(mp)
-			CExpression(mp, GPOS_NEW(mp) CLogicalSelect(mp), (*(*pexpr)[0])[0],
-						CollapseSelectAndReplaceColref(mp, (*pexpr)[1], pcolref,
-													   pprojExpr));
-	}
-
-	// replace reference
-	if (pexpr->Pop()->Eopid() == COperator::EopScalarIdent &&
-		CColRef::Equals(CScalarIdent::PopConvert(pexpr->Pop())->Pcr(), pcolref))
-	{
-		pprojExpr->AddRef();
-		return pprojExpr;
-	}
-
-	// recurse to children
-	CExpressionArray *pdrgpexprChildren = GPOS_NEW(mp) CExpressionArray(mp);
-	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
-	{
-		pdrgpexprChildren->Append(CollapseSelectAndReplaceColref(
-			mp, (*pexpr)[ul], pcolref, pprojExpr));
-	}
-
-	COperator *pop = pexpr->Pop();
-	pop->AddRef();
-	return GPOS_NEW(mp) CExpression(mp, pop, pdrgpexprChildren);
-}
-
-// Transpose a select over a project
-//
-// This preprocessing step enables additional opportunities for predicate push
-// down.  In the following example, the select constraint references "b" (18)
-// from the project list. As-is the normalizer cannot push the contraint further
-// than the project.  This step enables further push down by transposing the
-// project/select operators and fixing up corresponding column references.
-//
-// Example:
-//
-// Input:
-// +--CLogicalSelect
-//    |--CLogicalProject
-//    |  |--CLogicalNAryJoin
-//    |  |  |--CLogicalGet "foo" ("foo"), Columns: ["a" (0), "b" (1), ...
-//    |  |  |--CLogicalGet "bar" ("bar"), Columns: ["c" (9), "d" (10), ...
-//    |  |  +--CScalarCmp (=)
-//    |  |     |--CScalarIdent "a" (0)
-//    |  |     +--CScalarIdent "c" (9)
-//    |  +--CScalarProjectList
-//    |     +--CScalarProjectElement "b" (18)
-//    |        +--CScalarFunc (varchar)
-//    |           |--CScalarCast
-//    |           |  +--CScalarIdent "b" (1)
-//    |           |--CScalarConst (104)
-//    |           +--CScalarConst (1)
-//    +--CScalarCmp (=)
-//       |--CScalarCast
-//       |  +--CScalarIdent "b" (18)
-//       +--CScalarConst (1828233457.000)
-// Output:
-// +--CLogicalProject
-//    |--CLogicalSelect
-//    |  |--CLogicalNAryJoin
-//    |  |  |--CLogicalGet "foo" ("foo"), Columns: ["a" (0), "b" (1), ...
-//    |  |  |--CLogicalGet "bar" ("bar"), Columns: ["c" (9), "d" (10), ...
-//    |  |  +--CScalarCmp (=)
-//    |  |     |--CScalarIdent "a" (0)
-//    |  |     +--CScalarIdent "c" (9)
-//    |  +--CScalarCmp (=)
-//    |     |--CScalarCast
-//    |     |  +--CScalarFunc (varchar)
-//    |     |     |--CScalarCast
-//    |     |     |  +--CScalarIdent "b" (1)
-//    |     |     |--CScalarConst (104)
-//    |     |     +--CScalarConst (1)
-//    |     +--CScalarConst (1828233457.000)
-//    +--CScalarProjectList
-//       +--CScalarProjectElement "b" (18)
-//          +--CScalarFunc (varchar)
-//             |--CScalarCast
-//             |  +--CScalarIdent "b" (1)
-//             |--CScalarConst (104)
-//             +--CScalarConst (1)
 CExpression *
-CExpressionPreprocessor::PexprTransposeSelectAndProject(CMemoryPool *mp,
-														CExpression *pexpr)
-{
-	// protect against stack overflow during recursion
-	GPOS_CHECK_STACK_SIZE;
+CExpressionPreprocessor::ConvertSplitUpdateToInPlaceUpdate(CMemoryPool GPOS_UNUSED *mp, CExpression *pexpr) {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(nullptr != pexpr);
-
-	// Transpose:
-	//
-	// Input:
-	// +--CLogicalSelect (x = 'meh')
-	//    +--CLogicalProject (col1...n, expr as x)
-	//       +-- CLogicalNAryJoin
-	// Output:
-	// +--CLogicalProject (col1..n, expr as x)
-	//    +--CLogicalSelect (expr = 'meh')
-	//       +-- CLogicalNAryJoin
-	if (pexpr->Pop()->Eopid() == COperator::EopLogicalSelect &&
-		(*pexpr)[0]->Pop()->Eopid() == COperator::EopLogicalProject &&
-		(*(*pexpr)[0])[0]->Pop()->Eopid() == COperator::EopLogicalNAryJoin)
-	{
-		CExpression *pproject = (*pexpr)[0];
-		CExpression *pprojectList = (*pproject)[1];
-		CExpression *pselectNew = pexpr;
-
-		CExpressionArray *pdrgpexpr = GPOS_NEW(mp) CExpressionArray(mp);
-		for (ULONG ul = 0; ul < pprojectList->Arity(); ul++)
+	COperator *pop = pexpr->Pop();
+	if (COperator::EopLogicalUpdate == pop->Eopid()) {
+		CLogicalUpdate *popUpdate =
+			CLogicalUpdate::PopConvert(pop);
+		CColRefArray *pdrgpcrInsert = popUpdate->PdrgpcrInsert();
+		CColRefArray *pdrgpcrDelete = popUpdate->PdrgpcrDelete();
+		const ULONG num_cols = pdrgpcrInsert->Size();
+		BOOL split_update = false;
+		for (ULONG ul = 0; ul < num_cols; ul++)
 		{
-			CExpression *pprojexpr =
-				CUtils::PNthProjectElementExpr(pproject, ul);
-
-			CExpressionHandle exprhdl(mp);
-			exprhdl.Attach(pprojexpr);
-			exprhdl.DeriveProps(nullptr /*pdpctxt*/);
-
-			if (exprhdl.Arity() > 0 && exprhdl.DeriveHasNonScalarFunction(1))
-			{
-				// Bail if project expression contains a set-returning function
-				pdrgpexpr->Release();
-				pexpr->AddRef();
-				return pexpr;
+			CColRef *pcrInsert = (*pdrgpcrInsert)[ul];
+			CColRef *pcrDelete = (*pdrgpcrDelete)[ul];
+			if (pcrInsert != pcrDelete && pcrDelete->IsDistCol()) {
+				split_update = true;
+				break;
 			}
-
-			if (exprhdl.FChildrenHaveVolatileFunc())
-			{
-				// Bail if project expression contains a volatile function
-				pdrgpexpr->Release();
-				pexpr->AddRef();
-				return pexpr;
-			}
-
-			// TODO: In order to support mixed pushable and non-pushable
-			//       predicates we need to be able to deconstruct a select
-			//       conjunction constraint into pushable and non-pushable
-			//       parts.
-			//
-			//       NB: JoinOnViewWithMixOfPushableAndNonpushablePredicates.mdp
-			pselectNew = CollapseSelectAndReplaceColref(
-				mp, pselectNew, CUtils::PNthProjectElement(pproject, ul)->Pcr(),
-				CUtils::PNthProjectElementExpr(pproject, ul));
 		}
-		pdrgpexpr->Append(pselectNew);
-
-		CExpressionArray *pdrgpprojelems = GPOS_NEW(mp) CExpressionArray(mp);
-		for (ULONG ul = 0; ul < pprojectList->Arity(); ul++)
-		{
-			(*pprojectList)[ul]->AddRef();
-			pdrgpprojelems->Append((*pprojectList)[ul]);
+		if (!split_update) {
+			//			CColRef *pcrCtid = popUpdate->PcrCtid();
+			//			CColRef *pcrSegmentId = popUpdate->PcrSegmentId();
+			//			CTableDescriptor *ptabdesc = popUpdate->Ptabdesc();
+			CExpression *pexprChild = (*pexpr)[0];
+			pexprChild->AddRef();
+			CExpression *pexpr1 = GPOS_NEW(mp) CExpression(
+				mp,
+				GPOS_NEW(mp) CLogicalInPlaceUpdate(
+					mp, popUpdate->Ptabdesc(), pdrgpcrInsert,
+					popUpdate->PcrCtid(), popUpdate->PcrSegmentId()),
+				pexprChild);
+			return pexpr1;
 		}
-		pdrgpexpr->Append(GPOS_NEW(mp) CExpression(
-			mp, GPOS_NEW(mp) CScalarProjectList(mp), pdrgpprojelems));
-
-		return GPOS_NEW(mp)
-			CExpression(mp, GPOS_NEW(mp) CLogicalProject(mp), pdrgpexpr);
 	}
-	else
-	{
-		CExpressionArray *pdrgpexprChildren = GPOS_NEW(mp) CExpressionArray(mp);
-		for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
-		{
-			pdrgpexprChildren->Append(
-				PexprTransposeSelectAndProject(mp, (*pexpr)[ul]));
-		}
-
-		COperator *pop = pexpr->Pop();
-		pop->AddRef();
-		return GPOS_NEW(mp) CExpression(mp, pop, pdrgpexprChildren);
-	}
+	return pexpr;
 }
 
 // main driver, pre-processing of input logical expression
@@ -3088,18 +2936,18 @@ CExpressionPreprocessor::PexprPreprocess(
 	GPOS_CHECK_ABORT;
 	pexprExistWithPredFromINSubq->Release();
 
-	// (28) swap logical select over logical project
-	CExpression *pexprTransposeSelectAndProject =
-		PexprTransposeSelectAndProject(mp, pexprPrunedPartitions);
+	// (28) normalize expression again
+	CExpression *pexprNormalized2 =
+		CNormalizer::PexprNormalize(mp, pexprPrunedPartitions);
+	GPOS_CHECK_ABORT;
 	pexprPrunedPartitions->Release();
 
-	// (29) normalize expression again
-	CExpression *pexprNormalized2 =
-		CNormalizer::PexprNormalize(mp, pexprTransposeSelectAndProject);
+	CExpression *pexprSplitUpdateToInplace =
+		ConvertSplitUpdateToInPlaceUpdate(mp, pexprNormalized2);
 	GPOS_CHECK_ABORT;
-	pexprTransposeSelectAndProject->Release();
+	pexprNormalized2->Release();
 
-	return pexprNormalized2;
+	return pexprSplitUpdateToInplace;
 }
 
 // EOF
