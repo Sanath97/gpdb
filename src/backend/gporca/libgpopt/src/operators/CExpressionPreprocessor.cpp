@@ -2708,10 +2708,12 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 }
 
 CExpression *
-CExpressionPreprocessor::ConvertSplitUpdateToInPlaceUpdate(CMemoryPool GPOS_UNUSED *mp, CExpression *pexpr) {
+CExpressionPreprocessor::ConvertSplitUpdateToInPlaceUpdate(CMemoryPool *mp, CExpression *pexpr) {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(nullptr != pexpr);
 	COperator *pop = pexpr->Pop();
+	CExpression *pexprChild = (*pexpr)[0];
+	pexprChild->AddRef();
 	if (COperator::EopLogicalUpdate == pop->Eopid()) {
 		CLogicalUpdate *popUpdate =
 			CLogicalUpdate::PopConvert(pop);
@@ -2732,18 +2734,20 @@ CExpressionPreprocessor::ConvertSplitUpdateToInPlaceUpdate(CMemoryPool GPOS_UNUS
 			//			CColRef *pcrCtid = popUpdate->PcrCtid();
 			//			CColRef *pcrSegmentId = popUpdate->PcrSegmentId();
 			//			CTableDescriptor *ptabdesc = popUpdate->Ptabdesc();
-			CExpression *pexprChild = (*pexpr)[0];
-			pexprChild->AddRef();
+			CTableDescriptor* tabdesc = popUpdate->Ptabdesc();
+			pdrgpcrInsert->AddRef();
+     		tabdesc->AddRef();
 			CExpression *pexpr1 = GPOS_NEW(mp) CExpression(
 				mp,
 				GPOS_NEW(mp) CLogicalInPlaceUpdate(
-					mp, popUpdate->Ptabdesc(), pdrgpcrInsert,
+					mp, tabdesc, pdrgpcrInsert,
 					popUpdate->PcrCtid(), popUpdate->PcrSegmentId()),
 				pexprChild);
 			return pexpr1;
 		}
 	}
-	return pexpr;
+	pop->AddRef();
+	return GPOS_NEW(mp) CExpression(mp, pop, pexprChild);
 }
 
 // main driver, pre-processing of input logical expression
