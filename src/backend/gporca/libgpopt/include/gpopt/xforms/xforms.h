@@ -84,6 +84,7 @@
 #include "gpopt/xforms/CXformInnerJoinAntiSemiJoinNotInSwap.h"
 #include "gpopt/xforms/CXformInnerJoinAntiSemiJoinSwap.h"
 #include "gpopt/xforms/CXformInnerJoinSemiJoinSwap.h"
+#include "gpopt/xforms/CXformInPlaceUpdate2DML.h"
 #include "gpopt/xforms/CXformInsert2DML.h"
 #include "gpopt/xforms/CXformIntersect2Join.h"
 #include "gpopt/xforms/CXformIntersectAll2LeftSemiJoin.h"
