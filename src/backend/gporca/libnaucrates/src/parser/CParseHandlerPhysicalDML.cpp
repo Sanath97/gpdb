@@ -102,7 +102,7 @@ CParseHandlerPhysicalDML::StartElement(const XMLCh *const,	// element_uri,
 					  element_local_name))
 	{
 		token_type = EdxltokenPhysicalDMLInPlaceUpdate;
-		m_dxl_dml_type = Edxldmlsplitupdate;
+		m_dxl_dml_type = Edxldmlinplaceupdate;
 	}
 
 	const XMLCh *src_colids_xml = CDXLOperatorFactory::ExtractAttrValue(
