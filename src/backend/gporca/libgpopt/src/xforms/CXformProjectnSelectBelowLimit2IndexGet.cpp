@@ -10,13 +10,16 @@
 //		match any of the index prefix
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformProjectnSelectBelowLimit2IndexGet.h"
 #include "gpopt/xforms/CXformLimit2IndexGet.h"
 
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/operators/CLogicalLimit.h"
+#include "gpopt/operators/CLogicalProject.h"
 #include "gpopt/operators/CPatternLeaf.h"
+#include "gpopt/operators/CPatternNode.h"
 #include "gpopt/xforms/CXformUtils.h"
 #include "naucrates/md/CMDIndexGPDB.h"
 #include "naucrates/md/CMDRelationGPDB.h"
@@ -32,14 +35,21 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformLimit2IndexGet::CXformLimit2IndexGet(CMemoryPool *mp)
+CXformProjectnSelectBelowLimit2IndexGet::
+	CXformProjectnSelectBelowLimit2IndexGet(CMemoryPool *mp)
 	:  // pattern
 	  CXformExploration(
 		  // pattern
 		  GPOS_NEW(mp) CExpression(
 			  mp, GPOS_NEW(mp) CLogicalLimit(mp),
 			  GPOS_NEW(mp) CExpression(
-				  mp, GPOS_NEW(mp) CLogicalGet(mp)),  // relational child
+				  mp,
+				  GPOS_NEW(mp)
+					  CPatternNode(mp, CPatternNode::EmtMatchProjectOrSelect),
+				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(mp)),
+				  GPOS_NEW(mp) CExpression(
+					  mp,
+					  GPOS_NEW(mp) CPatternTree(mp))),	// relational child
 			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(
 											   mp)),  // scalar child for offset
 			  GPOS_NEW(mp) CExpression(
@@ -59,7 +69,7 @@ CXformLimit2IndexGet::CXformLimit2IndexGet(CMemoryPool *mp)
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformLimit2IndexGet::Exfp(CExpressionHandle &exprhdl) const
+CXformProjectnSelectBelowLimit2IndexGet::Exfp(CExpressionHandle &exprhdl) const
 {
 	if (exprhdl.DeriveHasSubquery(1))
 	{
@@ -78,8 +88,9 @@ CXformLimit2IndexGet::Exfp(CExpressionHandle &exprhdl) const
 //
 //---------------------------------------------------------------------------
 void
-CXformLimit2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
-								CExpression *pexpr) const
+CXformProjectnSelectBelowLimit2IndexGet::Transform(CXformContext *pxfctxt,
+												   CXformResult *pxfres,
+												   CExpression *pexpr) const
 {
 	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
@@ -89,11 +100,12 @@ CXformLimit2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 
 	CLogicalLimit *popLimit = CLogicalLimit::PopConvert(pexpr->Pop());
 	// extract components
-	CExpression *pexprRelational = (*pexpr)[0];
+	CExpression *pexprFirstChild = (*pexpr)[0];
 	CExpression *pexprScalarOffset = (*pexpr)[1];
 	CExpression *pexprScalarRows = (*pexpr)[2];
+	CExpression *pexprLogGet = (*pexprFirstChild)[0];
 
-	CLogicalGet *popGet = CLogicalGet::PopConvert(pexprRelational->Pop());
+	CLogicalGet *popGet = CLogicalGet::PopConvert(pexprLogGet->Pop());
 	// get the indices count of this relation
 	const ULONG ulIndices = popGet->Ptabdesc()->IndexCount();
 	// Ignore xform if relation doesn't have any indices
@@ -102,23 +114,32 @@ CXformLimit2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 		return;
 	}
 
-	CExpression *boolConstExpr = nullptr;
-	boolConstExpr = CUtils::PexprScalarConstBool(mp, true);
-
-	CExpressionArray *pdrgpexpr = GPOS_NEW(mp) CExpressionArray(mp);
-	pdrgpexpr->Append(boolConstExpr);
-
-	popGet->AddRef();
-	CExpression *pexprUpdtdRltn =
-		GPOS_NEW(mp) CExpression(mp, popGet, boolConstExpr);
-
+	CColRefArray *pdrgpcrIndexColumns = nullptr;
+	CExpression *pexprUpdtRltn = nullptr;
 	CColRefSet *pcrsScalarExpr = popLimit->PcrsLocalUsed();
-
-	// find the indexes whose included columns meet the required columns
+	CExpressionArray *pdrgpexpr = nullptr;
 	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
 	const IMDRelation *pmdrel =
 		md_accessor->RetrieveRel(popGet->Ptabdesc()->MDId());
-	CColRefArray *pdrgpcrIndexColumns = nullptr;
+
+	if (COperator::EopLogicalSelect == pexprFirstChild->Pop()->Eopid()) {
+
+		CExpression *pexprScalar = (*pexprFirstChild)[1];
+		// array of expressions in the scalar expression
+		pdrgpexpr =
+			CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
+		GPOS_ASSERT(pdrgpexpr->Size() > 0);
+		pexprUpdtRltn = pexprLogGet;
+	}
+	else {
+		CExpression *boolConstExpr = nullptr;
+		boolConstExpr = CUtils::PexprScalarConstBool(mp, true);
+		pdrgpexpr = GPOS_NEW(mp) CExpressionArray(mp);
+		pdrgpexpr->Append(boolConstExpr);
+		popGet->AddRef();
+		pexprUpdtRltn =
+			GPOS_NEW(mp) CExpression(mp, popGet, boolConstExpr);
+	}
 
 	for (ULONG ul = 0; ul < ulIndices; ul++)
 	{
@@ -127,91 +148,39 @@ CXformLimit2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 		// get columns in the index
 		pdrgpcrIndexColumns = CXformUtils::PdrgpcrIndexKeys(
 			mp, popGet->PdrgpcrOutput(), pmdindex, pmdrel);
-		COrderSpec *pos = popLimit->Pos();
-		if (FIndexApplicableForOrderBy(pos, pdrgpcrIndexColumns))
+		COrderSpec* pos = popLimit->Pos();
+		if (CXformLimit2IndexGet::FIndexApplicableForOrderBy(pos, pdrgpcrIndexColumns))
 		{
 			// build IndexGet expression
 			CExpression *pexprIndexGet = CXformUtils::PexprLogicalIndexGet(
-				mp, md_accessor, pexprUpdtdRltn, popLimit->UlOpId(), pdrgpexpr,
+				mp, md_accessor, pexprUpdtRltn, popLimit->UlOpId(), pdrgpexpr,
 				pcrsScalarExpr, nullptr /*outer_refs*/, pmdindex, pmdrel, true);
 
-			if (pexprIndexGet != nullptr)
-			{
-				// build Limit expression
-				CExpression *pexprNewLimit =
-					PexprLimit(mp, pexprIndexGet, pexprScalarOffset,
+			if (pexprIndexGet != nullptr) {
+				CExpression *pexprNewLimit = nullptr;
+				CExpression *pUpdtRltnExpr = nullptr;
+				if(COperator::EopLogicalProject == pexprFirstChild->Pop()->Eopid()){
+					CLogicalProject *popProj = CLogicalProject::PopConvert(pexprFirstChild->Pop());
+					CExpression *projectColsExpr = (*pexprFirstChild)[1];
+					projectColsExpr->AddRef();
+					pUpdtRltnExpr = GPOS_NEW(mp) CExpression(mp, popProj, pexprIndexGet, projectColsExpr);
+				}
+				else {
+					pUpdtRltnExpr = pexprIndexGet;
+				}
+				pexprNewLimit =
+					CXformLimit2IndexGet::PexprLimit(mp, pUpdtRltnExpr, pexprScalarOffset,
 							   pexprScalarRows, popLimit->Pos(),
 							   popLimit->FGlobal(),	 // fGlobal
 							   popLimit->FHasCount(),
 							   popLimit->IsTopLimitUnderDMLorCTAS());
-
 				pxfres->Add(pexprNewLimit);
 			}
 		}
 		pdrgpcrIndexColumns->Release();
 	}
-
 	pdrgpexpr->Release();
-	pexprUpdtdRltn->Release();
-}
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CXformLimit2IndexGet::FIndexApplicableForOrderBy
-//
-//	@doc:
-//		Function to validate if index is applicable, given OrderSpec and index
-// 	    columns. This function checks if ORDER BY columns are prefix of
-//		the index columns.
-//---------------------------------------------------------------------------
-BOOL
-CXformLimit2IndexGet::FIndexApplicableForOrderBy(
-	COrderSpec *pos, CColRefArray *pdrgpcrIndexColumns)
-{
-	// get order by columns size
-	ULONG totalOrderByCols = pos->UlSortColumns();
-	if (pdrgpcrIndexColumns->Size() < totalOrderByCols)
-	{
-		return false;
+	if(COperator::EopLogicalProject == pexprFirstChild->Pop()->Eopid()){
+		pexprUpdtRltn->Release();
 	}
-	BOOL indexApplicable = true;
-	for (ULONG i = 0; i < totalOrderByCols; i++)
-	{
-		if (!CColRef::Equals(pos->Pcr(i), (*pdrgpcrIndexColumns)[i]))
-		{
-			indexApplicable = false;
-			break;
-		}
-	}
-	return indexApplicable;
 }
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CXformLimit2IndexGet::PexprLimit
-//
-//	@doc:
-//		Generate a limit operator
-//
-//---------------------------------------------------------------------------
-CExpression *
-CXformLimit2IndexGet::PexprLimit(CMemoryPool *mp, CExpression *pexprRelational,
-								 CExpression *pexprScalarStart,
-								 CExpression *pexprScalarRows, COrderSpec *pos,
-								 BOOL fGlobal, BOOL fHasCount,
-								 BOOL fTopLimitUnderDML)
-{
-	pexprScalarStart->AddRef();
-	pexprScalarRows->AddRef();
-	pos->AddRef();
-
-	CExpression *pexprLimit = GPOS_NEW(mp) CExpression(
-		mp,
-		GPOS_NEW(mp)
-			CLogicalLimit(mp, pos, fGlobal, fHasCount, fTopLimitUnderDML),
-		pexprRelational, pexprScalarStart, pexprScalarRows);
-
-	return pexprLimit;
-}
-
-// EOF

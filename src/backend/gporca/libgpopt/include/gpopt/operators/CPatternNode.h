@@ -31,6 +31,7 @@ public:
 	enum EMatchType
 	{
 		EmtMatchInnerOrLeftOuterJoin,
+		EmtMatchProjectOrSelect,
 		EmtSentinel
 	};
 
@@ -95,6 +96,10 @@ public:
 			case EmtMatchInnerOrLeftOuterJoin:
 				return COperator::EopLogicalInnerJoin == opid ||
 					   COperator::EopLogicalLeftOuterJoin == opid;
+
+			case EmtMatchProjectOrSelect:
+				return COperator::EopLogicalProject == opid ||
+					   COperator::EopLogicalSelect == opid;
 
 			default:
 				return false;

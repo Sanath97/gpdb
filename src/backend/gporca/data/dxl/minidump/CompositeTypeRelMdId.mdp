@@ -329,7 +329,7 @@
         </dxl:LogicalSelect>
       </dxl:LogicalLimit>
     </dxl:Query>
-    <dxl:Plan Id="0" SpaceSize="4">
+    <dxl:Plan Id="0" SpaceSize="7">
       <dxl:Result>
         <dxl:Properties>
           <dxl:Cost StartupCost="0" TotalCost="882758.081876" Rows="1.000000" Width="8"/>

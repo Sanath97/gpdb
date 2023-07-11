@@ -245,3 +245,514 @@ explain (costs off) select a from test_index_with_orderby_limit order by a limit
 (6 rows)
 
 DROP TABLE test_index_with_orderby_limit;
+-- Tests for queries with project, predicate and order by on B-tree indices.
+CREATE TABLE test_index_with_project_and_predicate (a int, b int, c int, d int);
+CREATE INDEX index_a on test_index_with_project_and_predicate using btree(a);
+CREATE INDEX index_db on test_index_with_project_and_predicate using btree(d, b);
+CREATE INDEX index_bca on test_index_with_project_and_predicate using btree(b, c, a);
+INSERT INTO test_index_with_project_and_predicate select i, i-2, i*2, i+1 from generate_series(1,100000) i;
+ANALYZE test_index_with_project_and_predicate;
+-- All the predicate queries below use IndexScan with IndexCond or Filter
+explain (costs off) select * from test_index_with_project_and_predicate where a > 10 order by a limit 4;
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+                     Index Cond: (a > 10)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where c > 40 order by a limit 4;
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+                     Filter: (c > 40)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where a < 400 and c > 40 order by a limit 4;
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+                     Index Cond: (a < 400)
+                     Filter: (c > 40)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(8 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 10 order by d limit 4;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Index Cond: (d > 10)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where c > 10 order by d limit 4;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Filter: (c > 10)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 10 and c > 10 order by d limit 4;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Index Cond: (d > 10)
+                     Filter: (c > 10)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(8 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d < 12 order by d, b limit 1;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d, b
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Index Cond: (d < 12)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 12  and b > 12 order by d, b limit 4;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d, b
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Index Cond: ((d > 12) AND (b > 12))
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where a > 12 and c > 100  order by d, b limit 4;
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d, b
+         ->  Limit
+               ->  Index Scan using index_db on test_index_with_project_and_predicate
+                     Filter: ((a > 12) AND (c > 100))
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where b > 12 order by b, c, a limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, c, a
+         ->  Limit
+               ->  Index Scan using index_bca on test_index_with_project_and_predicate
+                     Index Cond: (b > 12)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where b > 12  and c<100 order by b, c, a limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, c, a
+         ->  Limit
+               ->  Index Scan using index_bca on test_index_with_project_and_predicate
+                     Index Cond: ((b > 12) AND (c < 100))
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where b > 12  and c<100  and a>0 order by b, c, a limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, c, a
+         ->  Limit
+               ->  Index Scan using index_bca on test_index_with_project_and_predicate
+                     Index Cond: ((b > 12) AND (c < 100) AND (a > 0))
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 12 order by b, c, a limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, c, a
+         ->  Limit
+               ->  Index Scan using index_bca on test_index_with_project_and_predicate
+                     Filter: (d > 12)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+-- query with IndexScan and offset
+explain (costs off) select * from test_index_with_project_and_predicate where b > 12  and c<100  and a>0 order by b, c, a offset 4;
+                                   QUERY PLAN
+---------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, c, a
+         ->  Index Scan using index_bca on test_index_with_project_and_predicate
+               Index Cond: ((b > 12) AND (c < 100) AND (a > 0))
+ Optimizer: Pivotal Optimizer (GPORCA)
+(6 rows)
+
+-- limit value in subquery
+explain (costs off) select * from test_index_with_project_and_predicate where c > 100 order by a limit (select min(a) from test_index_with_project_and_predicate);
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit
+   InitPlan 2 (returns $1)  (slice2)
+     ->  Result
+           InitPlan 1 (returns $0)  (slice3)
+             ->  Limit
+                   ->  Gather Motion 3:1  (slice4; segments: 3)
+                         Merge Key: test_index_with_project_and_predicate_1.a
+                         ->  Index Only Scan using index_a on test_index_with_project_and_predicate test_index_with_project_and_predicate_1
+                               Index Cond: (a IS NOT NULL)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: test_index_with_project_and_predicate.a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+                     Filter: (c > 100)
+ Optimizer: Postgres query optimizer
+(15 rows)
+
+-- offset value in a subquery
+explain (costs off) select * from test_index_with_project_and_predicate where a > 46 order by d, b  offset (select min(a) from test_index_with_project_and_predicate);
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit
+   InitPlan 2 (returns $1)  (slice2)
+     ->  Result
+           InitPlan 1 (returns $0)  (slice3)
+             ->  Limit
+                   ->  Gather Motion 3:1  (slice4; segments: 3)
+                         Merge Key: test_index_with_project_and_predicate_1.a
+                         ->  Index Only Scan using index_a on test_index_with_project_and_predicate test_index_with_project_and_predicate_1
+                               Index Cond: (a IS NOT NULL)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: test_index_with_project_and_predicate.d, test_index_with_project_and_predicate.b
+         ->  Index Scan using index_db on test_index_with_project_and_predicate
+               Filter: (a > 46)
+ Optimizer: Postgres query optimizer
+(14 rows)
+
+-- order by opposite to index sort direction
+explain (costs off) select * from test_index_with_project_and_predicate where a > 68 order by a desc limit 10;
+                                        QUERY PLAN
+-------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: a
+         ->  Limit
+               ->  Sort
+                     Sort Key: a DESC
+                     ->  Index Scan using index_a on test_index_with_project_and_predicate
+                           Index Cond: (a > 68)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(9 rows)
+
+-- order by opposite to nulls direction in index
+explain (costs off) select * from test_index_with_project_and_predicate where c > 7 order by d, b NULLS FIRST limit 10;
+                                            QUERY PLAN
+--------------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: d, b
+         ->  Limit
+               ->  Result
+                     Filter: (c > 7)
+                     ->  Sort
+                           Sort Key: d, b NULLS FIRST
+                           ->  Index Scan using index_db on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+-- predicate queries with non-index columns in order by
+explain (costs off) select * from test_index_with_project_and_predicate where c > 40 order by c limit 4;
+                                         QUERY PLAN
+---------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: c
+         ->  Limit
+               ->  Sort
+                     Sort Key: c
+                     ->  Index Scan using index_bca on test_index_with_project_and_predicate
+                           Index Cond: (c > 40)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(9 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where a > 12 and c > 100  order by b, d limit 4;
+                                        QUERY PLAN
+-------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, d
+         ->  Limit
+               ->  Sort
+                     Sort Key: b, d
+                     ->  Index Scan using index_a on test_index_with_project_and_predicate
+                           Index Cond: (a > 12)
+                           Filter: (c > 100)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 12 order by b, a, c limit 4;
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, a, c
+         ->  Limit
+               ->  Sort
+                     Sort Key: b, a, c
+                     ->  Index Scan using index_db on test_index_with_project_and_predicate
+                           Index Cond: (d > 12)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(9 rows)
+
+explain (costs off) select * from test_index_with_project_and_predicate where d > 12 order by b, a, d limit 4;
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: b, a, d
+         ->  Limit
+               ->  Sort
+                     Sort Key: b, a, d
+                     ->  Index Scan using index_db on test_index_with_project_and_predicate
+                           Index Cond: (d > 12)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(9 rows)
+
+-- Project queries with order by on index columns:
+explain (costs off) select a+1 from test_index_with_project_and_predicate order by a limit 3;
+                                        QUERY PLAN
+-------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: a
+               ->  Limit
+                     ->  Index Scan using index_a on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select a, c+3 from test_index_with_project_and_predicate order by a limit 3;
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Limit
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(6 rows)
+
+explain (costs off) select a, c+3 from test_index_with_project_and_predicate order by d limit 3;
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: d
+               ->  Limit
+                     ->  Index Scan using index_db on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select a, c-3 from test_index_with_project_and_predicate order by b limit 3;
+                                         QUERY PLAN
+---------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: b
+               ->  Limit
+                     ->  Index Scan using index_bca on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select b, c+3 from test_index_with_project_and_predicate order by d, b limit 3;
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: d, b
+               ->  Limit
+                     ->  Index Scan using index_db on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+explain (costs off) select b+d, c/a from test_index_with_project_and_predicate order by b, c, a limit 3;
+                                         QUERY PLAN
+---------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: b, c, a
+               ->  Limit
+                     ->  Index Scan using index_bca on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+-- query with project and offset
+explain (costs off) select a, c+3 from test_index_with_project_and_predicate order by b, c, a offset 4;
+                                         QUERY PLAN
+---------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Result
+               ->  Gather Motion 3:1  (slice1; segments: 3)
+                     Merge Key: b, c, a
+                     ->  Index Scan using index_bca on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
+
+-- limit value in subquery
+explain (costs off) select c*2 from test_index_with_project_and_predicate order by a limit (select min(a) from test_index_with_project_and_predicate);
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit
+   InitPlan 2 (returns $1)  (slice2)
+     ->  Result
+           InitPlan 1 (returns $0)  (slice3)
+             ->  Limit
+                   ->  Gather Motion 3:1  (slice4; segments: 3)
+                         Merge Key: test_index_with_project_and_predicate_1.a
+                         ->  Index Only Scan using index_a on test_index_with_project_and_predicate test_index_with_project_and_predicate_1
+                               Index Cond: (a IS NOT NULL)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: test_index_with_project_and_predicate.a
+         ->  Limit
+               ->  Index Scan using index_a on test_index_with_project_and_predicate
+ Optimizer: Postgres query optimizer
+(14 rows)
+
+-- offset value in a subquery
+explain (costs off) select a-1 from test_index_with_project_and_predicate order by d, b  offset (select min(a) from test_index_with_project_and_predicate);
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit
+   InitPlan 2 (returns $1)  (slice2)
+     ->  Result
+           InitPlan 1 (returns $0)  (slice3)
+             ->  Limit
+                   ->  Gather Motion 3:1  (slice4; segments: 3)
+                         Merge Key: test_index_with_project_and_predicate_1.a
+                         ->  Index Only Scan using index_a on test_index_with_project_and_predicate test_index_with_project_and_predicate_1
+                               Index Cond: (a IS NOT NULL)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         Merge Key: test_index_with_project_and_predicate.d, test_index_with_project_and_predicate.b
+         ->  Index Scan using index_db on test_index_with_project_and_predicate
+ Optimizer: Postgres query optimizer
+(13 rows)
+
+-- order by opposite to index sort direction
+explain (costs off) select d/7 from test_index_with_project_and_predicate  order by a desc limit 10;
+                                              QUERY PLAN
+-------------------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: a
+               ->  Limit
+                     ->  Result
+                           ->  Sort
+                                 Sort Key: a DESC
+                                 ->  Index Scan using index_a on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+-- order by opposite to nulls direction in index
+explain (costs off) select b+1 from test_index_with_project_and_predicate order by d, b NULLS FIRST limit 10;
+                                               QUERY PLAN
+--------------------------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: d, b
+               ->  Limit
+                     ->  Result
+                           ->  Sort
+                                 Sort Key: d, b NULLS FIRST
+                                 ->  Index Scan using index_db on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+-- project queries with non-index columns in order by
+explain (costs off) select a+c+d from test_index_with_project_and_predicate order by c limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: c
+               ->  Limit
+                     ->  Result
+                           ->  Sort
+                                 Sort Key: c
+                                 ->  Seq Scan on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+explain (costs off) select c+1 from test_index_with_project_and_predicate order by b, d limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: b, d
+               ->  Limit
+                     ->  Result
+                           ->  Sort
+                                 Sort Key: b, d
+                                 ->  Seq Scan on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+explain (costs off) select c+1 from test_index_with_project_and_predicate order by b, a, c limit 4;
+                                      QUERY PLAN
+---------------------------------------------------------------------------------------
+ Result
+   ->  Limit
+         ->  Gather Motion 3:1  (slice1; segments: 3)
+               Merge Key: b, a, c
+               ->  Limit
+                     ->  Result
+                           ->  Sort
+                                 Sort Key: b, a, c
+                                 ->  Seq Scan on test_index_with_project_and_predicate
+ Optimizer: Pivotal Optimizer (GPORCA)
+(10 rows)
+
+DROP TABLE test_index_with_project_and_predicate;

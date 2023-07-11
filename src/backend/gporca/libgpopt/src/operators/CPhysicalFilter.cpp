@@ -362,7 +362,7 @@ CPhysicalFilter::FProvidesReqdCols(CExpressionHandle &exprhdl,
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalFilter::EpetOrder(CExpressionHandle &,	 // exprhdl
+CPhysicalFilter::EpetOrder(CExpressionHandle &exprhdl,	// exprhdl
 						   const CEnfdOrder *
 #ifdef GPOS_DEBUG
 							   peo
@@ -371,6 +371,12 @@ CPhysicalFilter::EpetOrder(CExpressionHandle &,	 // exprhdl
 {
 	GPOS_ASSERT(nullptr != peo);
 	GPOS_ASSERT(!peo->PosRequired()->IsEmpty());
+
+	COrderSpec *pos = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pos();
+	if (peo->FCompatible(pos))
+	{
+		return CEnfdProp::EpetUnnecessary;
+	}
 
 	// always force sort to be on top of filter
 	return CEnfdProp::EpetRequired;

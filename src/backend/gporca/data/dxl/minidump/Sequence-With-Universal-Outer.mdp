@@ -102,10 +102,10 @@
         </dxl:LogicalTVF>
       </dxl:LogicalLimit>
     </dxl:Query>
-    <dxl:Plan Id="0" SpaceSize="32">
+    <dxl:Plan Id="0" SpaceSize="64">
       <dxl:Sort SortDiscardDuplicates="false">
         <dxl:Properties>
-          <dxl:Cost StartupCost="0" TotalCost="862.256160" Rows="1000.000000" Width="4"/>
+          <dxl:Cost StartupCost="0" TotalCost="0.230024" Rows="1000.000000" Width="4"/>
         </dxl:Properties>
         <dxl:ProjList>
           <dxl:ProjElem ColId="0" Alias="a">

@@ -9,12 +9,13 @@
 //		Transform LogicalGet in a limit to LogicalIndexGet if order by columns
 //		match any of the index prefix
 //---------------------------------------------------------------------------
-#ifndef GPOPT_CXformLimit2IndexGet_H
-#define GPOPT_CXformLimit2IndexGet_H
+#ifndef GPOPT_CXformProjectnSelectBelowLimit2IndexGet_H
+#define GPOPT_CXformProjectnSelectBelowLimit2IndexGet_H
 
 #include "gpos/base.h"
 
 #include "gpopt/xforms/CXformExploration.h"
+#include "gpopt/operators/CLogicalGet.h"
 namespace gpopt
 {
 using namespace gpos;
@@ -27,45 +28,28 @@ using namespace gpos;
 //		Transform LogicalGet in a limit to LogicalIndexGet if order by columns
 //		match any of the index prefix
 //---------------------------------------------------------------------------
-class CXformLimit2IndexGet : public CXformExploration
+class CXformProjectnSelectBelowLimit2IndexGet : public CXformExploration
 {
 public:
-	// helper function for creating a limit expression
-	static CExpression *PexprLimit(
-		CMemoryPool *mp,				// memory pool
-		CExpression *pexprRelational,	// relational child
-		CExpression *pexprScalarStart,	// limit offset
-		CExpression *pexprScalarRows,	// limit count
-		COrderSpec *pos,				// ordering specification
-		BOOL fGlobal,					// is it a local or global limit
-		BOOL fHasCount,					// does limit specify a number of rows
-		BOOL fTopLimitUnderDML);
-
-	// helper function to validate if index is applicable, given OrderSpec
-	// and index columns. This function checks if ORDER BY columns are prefix of
-	// the index columns.
-	static BOOL FIndexApplicableForOrderBy(COrderSpec *pos,
-										   CColRefArray *pdrgpcrIndexColumns);
-
-	CXformLimit2IndexGet(const CXformLimit2IndexGet &) = delete;
+	CXformProjectnSelectBelowLimit2IndexGet(const CXformProjectnSelectBelowLimit2IndexGet &) = delete;
 	// ctor
-	explicit CXformLimit2IndexGet(CMemoryPool *mp);
+	explicit CXformProjectnSelectBelowLimit2IndexGet(CMemoryPool *mp);
 
 	// dtor
-	~CXformLimit2IndexGet() override = default;
+	~CXformProjectnSelectBelowLimit2IndexGet() override = default;
 
 	// ident accessors
 	EXformId
 	Exfid() const override
 	{
-		return ExfLimit2IndexGet;
+		return ExfProjectnSelectBelowLimit2IndexGet;
 	}
 
 	// xform name
 	const CHAR *
 	SzId() const override
 	{
-		return "CXformLimit2IndexGet";
+		return "CXformProjectnSelectBelowLimit2IndexGet";
 	}
 
 	// compute xform promise for a given expression handle
@@ -74,11 +58,9 @@ public:
 	// actual transform
 	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 				   CExpression *pexpr) const override;
-
-
-};	// class CXformLimit2IndexGet
+} ;	// class CXformProjectnSelectBelowLimit2IndexGet
 
 }  // namespace gpopt
 
 
-#endif	//GPOPT_CXformLimit2IndexGet_H
+#endif	//GPOPT_CXformProjectnSelectBelowLimit2IndexGet_H

@@ -258,7 +258,7 @@ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..0.00 rows=1 width=4)
       </dxl:LogicalLimit>
     </dxl:Query>
     <dxl:Plan Id="0" SpaceSize="4">
-      <dxl:GatherMotion InputSegments="0,1,2" OutputSegments="-1">
+      <dxl:Result>
         <dxl:Properties>
           <dxl:Cost StartupCost="0" TotalCost="391.295517" Rows="1.000000" Width="4"/>
         </dxl:Properties>
@@ -268,23 +268,28 @@ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..0.00 rows=1 width=4)
           </dxl:ProjElem>
         </dxl:ProjList>
         <dxl:Filter/>
-        <dxl:SortingColumnList>
-          <dxl:SortingColumn ColId="0" SortOperatorMdid="0.97.1.0" SortOperatorName="&lt;" SortNullsFirst="false"/>
-        </dxl:SortingColumnList>
-        <dxl:Result>
+        <dxl:OneTimeFilter/>
+        <dxl:Sort SortDiscardDuplicates="false">
           <dxl:Properties>
-            <dxl:Cost StartupCost="0" TotalCost="391.295502" Rows="1.000000" Width="4"/>
+            <dxl:Cost StartupCost="0" TotalCost="391.295517" Rows="1.000000" Width="4"/>
           </dxl:Properties>
           <dxl:ProjList>
             <dxl:ProjElem ColId="0" Alias="id">
               <dxl:Ident ColId="0" ColName="id" TypeMdid="0.23.1.0"/>
             </dxl:ProjElem>
+            <dxl:ProjElem ColId="1" Alias="b">
+              <dxl:Ident ColId="1" ColName="b" TypeMdid="0.603.1.0"/>
+            </dxl:ProjElem>
           </dxl:ProjList>
           <dxl:Filter/>
-          <dxl:OneTimeFilter/>
-          <dxl:Sort SortDiscardDuplicates="false">
+          <dxl:SortingColumnList>
+            <dxl:SortingColumn ColId="0" SortOperatorMdid="0.97.1.0" SortOperatorName="&lt;" SortNullsFirst="false"/>
+          </dxl:SortingColumnList>
+          <dxl:LimitCount/>
+          <dxl:LimitOffset/>
+          <dxl:GatherMotion InputSegments="0,1,2" OutputSegments="-1">
             <dxl:Properties>
-              <dxl:Cost StartupCost="0" TotalCost="391.295502" Rows="1.000000" Width="4"/>
+              <dxl:Cost StartupCost="0" TotalCost="391.295517" Rows="1.000000" Width="4"/>
             </dxl:Properties>
             <dxl:ProjList>
               <dxl:ProjElem ColId="0" Alias="id">
@@ -295,11 +300,7 @@ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..0.00 rows=1 width=4)
               </dxl:ProjElem>
             </dxl:ProjList>
             <dxl:Filter/>
-            <dxl:SortingColumnList>
-              <dxl:SortingColumn ColId="0" SortOperatorMdid="0.97.1.0" SortOperatorName="&lt;" SortNullsFirst="false"/>
-            </dxl:SortingColumnList>
-            <dxl:LimitCount/>
-            <dxl:LimitOffset/>
+            <dxl:SortingColumnList/>
             <dxl:BitmapTableScan>
               <dxl:Properties>
                 <dxl:Cost StartupCost="0" TotalCost="391.295500" Rows="1.000000" Width="4"/>
@@ -338,9 +339,9 @@ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..0.00 rows=1 width=4)
                 </dxl:Columns>
               </dxl:TableDescriptor>
             </dxl:BitmapTableScan>
-          </dxl:Sort>
-        </dxl:Result>
-      </dxl:GatherMotion>
+          </dxl:GatherMotion>
+        </dxl:Sort>
+      </dxl:Result>
     </dxl:Plan>
   </dxl:Thread>
 </dxl:DXLMessage>

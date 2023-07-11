@@ -122,6 +122,7 @@
 #include "gpopt/xforms/CXformMaxOneRow2Assert.h"
 #include "gpopt/xforms/CXformProject2Apply.h"
 #include "gpopt/xforms/CXformProject2ComputeScalar.h"
+#include "gpopt/xforms/CXformProjectnSelectBelowLimit2IndexGet.h"
 #include "gpopt/xforms/CXformPushDownLeftOuterJoin.h"
 #include "gpopt/xforms/CXformPushGbBelowJoin.h"
 #include "gpopt/xforms/CXformPushGbBelowUnion.h"

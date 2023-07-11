@@ -133,7 +133,8 @@ OBJS        = CDecorrelator.o \
               CXformUpdate2DML.o \
               CXformUtils.o \
               CxformSelect2DynamicBitmapBoolOp.o \
-              CXformLimit2IndexGet.o
+              CXformLimit2IndexGet.o \
+              CXformProjectnSelectBelowLimit2IndexGet.o
 
 include $(top_srcdir)/src/backend/common.mk
 
