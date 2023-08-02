@@ -1343,6 +1343,51 @@ SELECT * FROM delete_from_pt order by a;
  10 | 4
 (8 rows)
 
+-- Validate that turning off 'optimizer_enable_dynamicindexscan' guc doesn't pick DynamicIndexScan
+CREATE TABLE test_dynamicindexscan_guc(a int, b text, c text) DISTRIBUTED BY (a) PARTITION BY range(a) (start (0) end(100) every(20));
+CREATE INDEX idx ON test_dynamicindexscan_guc(a);
+-- by default guc 'optimizer_enable_dynamicindexscan' is set to true
+-- this query uses DynamicIndexScan
+explain (costs off) select a from test_dynamicindexscan_guc where a>34;
+                          QUERY PLAN
+--------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Dynamic Index Scan on idx on test_dynamicindexscan_guc
+         Index Cond: (a > 34)
+         Number of partitions to scan: 4 (out of 5)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(5 rows)
+
+-- turn off the guc
+set optimizer_enable_dynamicindexscan to off;
+-- Validate if it is set to off
+show optimizer_enable_dynamicindexscan;
+ optimizer_enable_dynamicindexscan 
+-----------------------------------
+ off
+(1 row)
+
+-- this query uses DynamicIndexOnlyScan
+explain (costs off) select a from test_dynamicindexscan_guc where a>34;
+                            QUERY PLAN
+-------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Dynamic Index Only Scan on idx on test_dynamicindexscan_guc
+         Index Cond: (a > 34)
+         Number of partitions to scan: 4 (out of 5)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(5 rows)
+
+-- Clean up
+DROP TABLE test_dynamicindexscan_guc;
+reset optimizer_enable_dynamicindexscan;
+-- Validate if it is set back to on
+show optimizer_enable_dynamicindexscan;
+ optimizer_enable_dynamicindexscan 
+-----------------------------------
+ on
+(1 row)
+
 RESET optimizer_trace_fallback;
 -- CLEANUP
 -- start_ignore

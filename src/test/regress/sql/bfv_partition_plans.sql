@@ -626,6 +626,24 @@ EXPLAIN (COSTS OFF, TIMING OFF, SUMMARY OFF, ANALYZE) DELETE FROM delete_from_pt
 
 SELECT * FROM delete_from_pt order by a;
 
+-- Validate that turning off 'optimizer_enable_dynamicindexscan' guc doesn't pick DynamicIndexScan
+CREATE TABLE test_dynamicindexscan_guc(a int, b text, c text) DISTRIBUTED BY (a) PARTITION BY range(a) (start (0) end(100) every(20));
+CREATE INDEX idx ON test_dynamicindexscan_guc(a);
+-- by default guc 'optimizer_enable_dynamicindexscan' is set to true
+-- this query uses DynamicIndexScan
+explain (costs off) select a from test_dynamicindexscan_guc where a>34;
+-- turn off the guc
+set optimizer_enable_dynamicindexscan to off;
+-- Validate if it is set to off
+show optimizer_enable_dynamicindexscan;
+-- this query uses DynamicIndexOnlyScan
+explain (costs off) select a from test_dynamicindexscan_guc where a>34;
+
+-- Clean up
+DROP TABLE test_dynamicindexscan_guc;
+reset optimizer_enable_dynamicindexscan;
+-- Validate if it is set back to on
+show optimizer_enable_dynamicindexscan;
 RESET optimizer_trace_fallback;
 
 -- CLEANUP
