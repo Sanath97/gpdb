@@ -1162,33 +1162,33 @@ CTranslatorDXLToPlStmt::TranslateIndexConditions(
 		Node *left_arg = (Node *) lfirst(gpdb::ListHead(args_list));
 		Node *right_arg = (Node *) lfirst(gpdb::ListTail(args_list));
 
-		BOOL is_relabel_type = false;
-		if (IsA(left_arg, RelabelType) &&
-			IsA(((RelabelType *) left_arg)->arg, Var))
-		{
-			left_arg = (Node *) ((RelabelType *) left_arg)->arg;
-			is_relabel_type = true;
-		}
-		else if (IsA(right_arg, RelabelType) &&
-				 IsA(((RelabelType *) right_arg)->arg, Var))
-		{
-			right_arg = (Node *) ((RelabelType *) right_arg)->arg;
-			is_relabel_type = true;
-		}
-
-		if (is_relabel_type)
-		{
-			List *new_args_list = ListMake2(left_arg, right_arg);
-			gpdb::GPDBFree(args_list);
-			if (IsA(index_cond_expr, OpExpr))
-			{
-				((OpExpr *) index_cond_expr)->args = new_args_list;
-			}
-			else
-			{
-				((ScalarArrayOpExpr *) index_cond_expr)->args = new_args_list;
-			}
-		}
+//		BOOL is_relabel_type = false;
+//		if (IsA(left_arg, RelabelType) &&
+//			IsA(((RelabelType *) left_arg)->arg, Var))
+//		{
+//			left_arg = (Node *) ((RelabelType *) left_arg)->arg;
+//			is_relabel_type = true;
+//		}
+//		else if (IsA(right_arg, RelabelType) &&
+//				 IsA(((RelabelType *) right_arg)->arg, Var))
+//		{
+//			right_arg = (Node *) ((RelabelType *) right_arg)->arg;
+//			is_relabel_type = true;
+//		}
+//
+//		if (is_relabel_type)
+//		{
+//			List *new_args_list = ListMake2(left_arg, right_arg);
+//			gpdb::GPDBFree(args_list);
+//			if (IsA(index_cond_expr, OpExpr))
+//			{
+//				((OpExpr *) index_cond_expr)->args = new_args_list;
+//			}
+//			else
+//			{
+//				((ScalarArrayOpExpr *) index_cond_expr)->args = new_args_list;
+//			}
+//		}
 
 		GPOS_ASSERT((IsA(left_arg, Var) || IsA(right_arg, Var)) &&
 					"expected index key in index qual");
