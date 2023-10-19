@@ -31,11 +31,20 @@ using namespace gpos;
 class CScalarNullTest : public CScalar
 {
 private:
+	// is nul or is not null operation
+	BOOL m_is_null{true};
+
 public:
 	CScalarNullTest(const CScalarNullTest &) = delete;
 
 	// ctor
 	explicit CScalarNullTest(CMemoryPool *mp) : CScalar(mp)
+	{
+	}
+
+	// ctor
+	explicit CScalarNullTest(CMemoryPool *mp, BOOL is_null)
+		: CScalar(mp), m_is_null(is_null)
 	{
 	}
 
@@ -66,6 +75,9 @@ public:
 	{
 		return false;
 	}
+
+	// NullTest operator type
+	BOOL IsNullTest() const;
 
 	// return a copy of the operator with remapped columns
 	COperator *

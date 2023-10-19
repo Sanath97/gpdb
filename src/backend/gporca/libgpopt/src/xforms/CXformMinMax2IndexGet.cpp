@@ -14,6 +14,7 @@
 
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalGet.h"
+#include "gpopt/operators/CScalarNullTest.h"
 #include "gpopt/operators/CScalarProjectList.h"
 #include "gpopt/xforms/CXformUtils.h"
 
@@ -138,8 +139,9 @@ CXformMinMax2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	}
 
 	// Generate index column not null condition.
-	CExpression *notNullExpr =
-		CUtils::PexprIsNotNull(mp, CUtils::PexprScalarIdent(mp, agg_colref));
+        CExpression *notNullExpr = GPOS_NEW(mp)
+                CExpression(mp, GPOS_NEW(mp) CScalarNullTest(mp, false),
+                            CUtils::PexprScalarIdent(mp, agg_colref));
 
 	CExpressionArray *pdrgpexpr = GPOS_NEW(mp) CExpressionArray(mp);
 	notNullExpr->AddRef();

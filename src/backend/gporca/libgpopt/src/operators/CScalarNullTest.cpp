@@ -85,5 +85,11 @@ CScalarNullTest::Eber(ULongPtrArray *pdrgpulChildren) const
 	}
 }
 
+BOOL
+CScalarNullTest::IsNullTest() const
+{
+    return m_is_null;
+}
+
 
 // EOF

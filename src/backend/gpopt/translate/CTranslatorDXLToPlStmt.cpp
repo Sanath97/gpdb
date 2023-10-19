@@ -1124,27 +1124,6 @@ CTranslatorDXLToPlStmt::TranslateIndexConditions(
 	for (ULONG ul = 0; ul < arity; ul++)
 	{
 		CDXLNode *index_cond_dxlnode = (*index_cond_list_dxlnode)[ul];
-		CDXLNode *modified_null_test_cond_dxlnode = nullptr;
-		// Translate index condition CDXLScalarBoolExpr of format 'NOT (col IS NULL)'
-		// to CDXLScalarNullTest 'col IS NOT NULL', because IndexScan only
-		// supports indexquals of types: OpExpr, RowCompareExpr,
-		// ScalarArrayOpExpr and NullTest
-		if (index_cond_dxlnode->GetOperator()->GetDXLOperator() ==
-			EdxlopScalarBoolExpr)
-		{
-			CDXLScalarBoolExpr *boolexpr_dxlop =
-				CDXLScalarBoolExpr::Cast(index_cond_dxlnode->GetOperator());
-			if (boolexpr_dxlop->GetDxlBoolTypeStr() == Edxlnot &&
-				(*index_cond_dxlnode)[0]->GetOperator()->GetDXLOperator() ==
-					EdxlopScalarNullTest)
-			{
-				CDXLNode *null_test_cond_dxlnode = (*index_cond_dxlnode)[0];
-				modified_null_test_cond_dxlnode = GPOS_NEW(m_mp) CDXLNode(
-					m_mp, GPOS_NEW(m_mp) CDXLScalarNullTest(m_mp, false),
-					(*null_test_cond_dxlnode)[0]);
-				index_cond_dxlnode = modified_null_test_cond_dxlnode;
-			}
-		}
 		Expr *original_index_cond_expr =
 			m_translator_dxl_to_scalar->TranslateDXLToScalar(
 				index_cond_dxlnode, &colid_var_mapping);
@@ -1281,10 +1260,6 @@ CTranslatorDXLToPlStmt::TranslateIndexConditions(
 			index_qual_info_array->Append(GPOS_NEW(m_mp) CIndexQualInfo(
 				attno, index_cond_expr, original_index_cond_expr, strategy_num,
 				index_subtype_oid));
-		}
-		if (modified_null_test_cond_dxlnode != nullptr)
-		{
-			modified_null_test_cond_dxlnode->Release();
 		}
 	}
 

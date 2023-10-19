@@ -86,6 +86,7 @@
 #include "gpopt/operators/CScalarIsDistinctFrom.h"
 #include "gpopt/operators/CScalarMinMax.h"
 #include "gpopt/operators/CScalarNullIf.h"
+#include "gpopt/operators/CScalarNullTest.h"
 #include "gpopt/operators/CScalarOp.h"
 #include "gpopt/operators/CScalarProjectElement.h"
 #include "gpopt/operators/CScalarSortGroupClause.h"
@@ -5990,8 +5991,9 @@ CTranslatorExprToDXL::PdxlnScNullTest(CExpression *pexprNullTest)
 {
 	GPOS_ASSERT(nullptr != pexprNullTest);
 
+        CScalarNullTest *scalarNullTest = CScalarNullTest::PopConvert(pexprNullTest->Pop());
 	CDXLNode *pdxlnNullTest = GPOS_NEW(m_mp) CDXLNode(
-		m_mp, GPOS_NEW(m_mp) CDXLScalarNullTest(m_mp, true /* is_null */));
+		m_mp, GPOS_NEW(m_mp) CDXLScalarNullTest(m_mp, scalarNullTest->IsNullTest() /* is_null */));
 
 	// translate child
 	GPOS_ASSERT(1 == pexprNullTest->Arity());
