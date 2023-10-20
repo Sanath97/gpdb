@@ -1139,9 +1139,11 @@ CTranslatorDXLToPlStmt::TranslateIndexConditions(
 					EdxlopScalarNullTest)
 			{
 				CDXLNode *null_test_cond_dxlnode = (*index_cond_dxlnode)[0];
+				CDXLNode *scalar_ident_dxlnode = (*null_test_cond_dxlnode)[0];
+				scalar_ident_dxlnode->AddRef();
 				modified_null_test_cond_dxlnode = GPOS_NEW(m_mp) CDXLNode(
 					m_mp, GPOS_NEW(m_mp) CDXLScalarNullTest(m_mp, false),
-					(*null_test_cond_dxlnode)[0]);
+					scalar_ident_dxlnode);
 				index_cond_dxlnode = modified_null_test_cond_dxlnode;
 			}
 		}
