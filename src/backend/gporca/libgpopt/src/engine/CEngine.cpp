@@ -1712,10 +1712,10 @@ CEngine::Optimize()
 		poc->Release();
 
 		// extract best plan found at the end of current search stage
-		CExpression *pexprPlan = m_pmemo->PexprExtractPlan(
-			m_mp, m_pmemo->PgroupRoot(), m_pqc->Prpp(),
-			m_search_stage_array->Size());
-		PssCurrent()->SetBestExpr(pexprPlan);
+		//		CExpression *pexprPlan = m_pmemo->PexprExtractPlan(
+		//			m_mp, m_pmemo->PgroupRoot(), m_pqc->Prpp(),
+		//			m_search_stage_array->Size());
+		//		PssCurrent()->SetBestExpr(pexprPlan);
 
 		FinalizeSearchStage();
 	}

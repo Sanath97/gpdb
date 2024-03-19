@@ -28,6 +28,7 @@
 #include "gpopt/operators/CLogicalInnerJoin.h"
 #include "gpopt/operators/COperator.h"
 #include "gpopt/operators/CPhysicalMotionGather.h"
+#include "gpopt/operators/CPhysicalTableScan.h"
 #include "gpopt/operators/CScalarSubquery.h"
 #include "gpopt/search/CGroupProxy.h"
 #include "gpopt/search/CJobGroup.h"
@@ -172,7 +173,8 @@ CGroup::CGroup(CMemoryPool *mp, BOOL fScalar)
 	  m_eolMax(EolLow),
 	  m_fHasNewLogicalOperators(false),
 	  m_ulCTEProducerId(gpos::ulong_max),
-	  m_fCTEConsumer(false)
+	  m_fCTEConsumer(false),
+	  m_group_satisfied_hint(false)
 {
 	GPOS_ASSERT(nullptr != mp);
 
@@ -323,25 +325,58 @@ CGroup::UpdateBestCost(COptimizationContext *poc, CCostContext *pcc)
 //---------------------------------------------------------------------------
 COptimizationContext *
 CGroup::PocLookup(CMemoryPool *mp, CReqdPropPlan *prpp,
-				  ULONG ulSearchStageIndex)
+				  ULONG ulSearchStageIndex,
+				  CDistributionSpec::EDistributionType hint_distribution)
 {
-	prpp->AddRef();
-	COptimizationContext *poc = GPOS_NEW(mp) COptimizationContext(
-		mp, this, prpp,
-		GPOS_NEW(mp) CReqdPropRelational(GPOS_NEW(mp) CColRefSet(
-			mp)),  // required relational props is not used when looking up contexts
-		GPOS_NEW(mp) IStatisticsArray(
-			mp),  // stats context is not used when looking up contexts
-		ulSearchStageIndex);
-
-	COptimizationContext *pocFound = nullptr;
+	COptimizationContext *currentPoc = nullptr;
+	COptimizationContext *pocBest = nullptr;
+	CCostContext *pccBest = nullptr;
+	ShtIter shtit(const_cast<CGroup *>(this)->m_sht);
+	while (shtit.Advance())
 	{
-		ShtAcc shta(Sht(), *poc);
-		pocFound = shta.Find();
+		{
+			ShtAccIter shtitacc(shtit);
+			currentPoc = shtitacc.Value();
+			// Pick the best Optimization context among all the context's
+			// whose required distribution spec is equal to hint distribution
+			if (currentPoc->Prpp()->Ped()->PdsRequired()->Edt() ==
+				hint_distribution)
+			{
+				if (nullptr == pccBest)
+				{
+					pocBest = currentPoc;
+					pccBest = currentPoc->PccBest();
+				}
+				else if (currentPoc->PccBest()->Cost() < pccBest->Cost())
+				{
+					pocBest = currentPoc;
+					pccBest = currentPoc->PccBest();
+				}
+			}
+		}
 	}
-	poc->Release();
 
-	return pocFound;
+	// If none of existing optimization context's satisfy hint distribution,
+	// fall back to normal path
+	if (pocBest == nullptr)
+	{
+		prpp->AddRef();
+		currentPoc = GPOS_NEW(mp) COptimizationContext(
+			mp, this, prpp,
+			GPOS_NEW(mp) CReqdPropRelational(GPOS_NEW(mp) CColRefSet(
+				mp)),  // required relational props is not used when looking up contexts
+			GPOS_NEW(mp) IStatisticsArray(
+				mp),  // stats context is not used when looking up contexts
+			ulSearchStageIndex);
+
+		{
+			ShtAcc shta(Sht(), *currentPoc);
+			pocBest = shta.Find();
+		}
+		currentPoc->Release();
+	}
+
+	return pocBest;
 }
 
 
@@ -357,13 +392,15 @@ CGroup::PocLookup(CMemoryPool *mp, CReqdPropPlan *prpp,
 //---------------------------------------------------------------------------
 COptimizationContext *
 CGroup::PocLookupBest(CMemoryPool *mp, ULONG ulSearchStages,
-					  CReqdPropPlan *prpp)
+					  CReqdPropPlan *prpp,
+					  CDistributionSpec::EDistributionType hint_distribution)
 {
 	COptimizationContext *pocBest = nullptr;
 	CCostContext *pccBest = nullptr;
 	for (ULONG ul = 0; ul < ulSearchStages; ul++)
 	{
-		COptimizationContext *pocCurrent = PocLookup(mp, prpp, ul);
+		COptimizationContext *pocCurrent =
+			PocLookup(mp, prpp, ul, hint_distribution);
 		if (nullptr == pocCurrent)
 		{
 			continue;
@@ -2016,6 +2053,129 @@ CGroup::PstatsCompute(COptimizationContext *poc, CExpressionHandle &exprhdl,
 	return stats;
 }
 
+// Match single alias hints: broadcast(t1), redistribute(t2) etc...
+//CDistributionSpec::EDistributionType
+//CGroup::FHasMatchingHints()
+//{
+//	if (this->FSatisfyHint()) {
+//		return CDistributionSpec::EdtSentinel;
+//	}
+//	CGroupExpression *pgexpr = m_listGExprs.First();
+//	while (nullptr != pgexpr)
+//	{
+//		if(pgexpr->Pop()->Eopid() == COperator::EopPhysicalTableScan) {
+//			CPhysicalTableScan* pop = CPhysicalTableScan::PopConvert(pgexpr->Pop());
+//			CWStringConst alias_name_f(GPOS_WSZ_LIT("f"));
+//			CWStringConst alias_name_b(GPOS_WSZ_LIT("b"));
+//			if(pop->Ptabdesc()->Name().Equals(CName(&alias_name_f)) ||
+//				pop->Ptabdesc()->Name().Equals(CName(&alias_name_b)))
+//			{
+//				this->SetSatisfyHint(true);
+//				return CDistributionSpec::EdtReplicated ;
+//			}
+//		}
+//		else if(pgexpr->Pop()->Eopid() == COperator::EopPhysicalFilter)
+//		{
+//			CGroupArray *grpArray = pgexpr->Pdrgpgroup();
+//			CGroup *table_scan_grp = (*grpArray)[0];
+//			CDistributionSpec::EDistributionType dist_type = table_scan_grp->FHasMatchingHints();
+//			if(dist_type != CDistributionSpec::EdtSentinel){
+//				this->SetSatisfyHint(true);
+//				return dist_type;
+//			}
+//		}
+//		pgexpr = m_listGExprs.Next(pgexpr);
+//		GPOS_CHECK_ABORT;
+//	}
+//	return CDistributionSpec::EdtSentinel;
+//}
+
+//
+//StringPtrArray *
+//CGroup::GetGroupAliases(StringPtrArray *group_aliases)
+//{
+//	CGroupExpression *pgexpr = m_listGExprs.First();
+//	while (nullptr != pgexpr)
+//	{
+//		if (pgexpr->Pop()->FPhysicalJoin())
+//		{
+//			CGroupArray *grpArray = pgexpr->Pdrgpgroup();
+//			CGroup *first_child = (*grpArray)[0];
+//			CGroup *second_child = (*grpArray)[1];
+//			group_aliases = first_child->GetGroupAliases(group_aliases);
+//			group_aliases = second_child->GetGroupAliases(group_aliases);
+//			return group_aliases;
+//		}
+//		else if (pgexpr->Pop()->Eopid() == COperator::EopPhysicalTableScan)
+//		{
+//			CPhysicalTableScan *pop =
+//				CPhysicalTableScan::PopConvert(pgexpr->Pop());
+//			group_aliases->Append(GPOS_NEW(m_mp) CWStringConst(
+//				m_mp, pop->Ptabdesc()->Name().Pstr()->GetBuffer()));
+//			return group_aliases;
+//		}
+//		else if (pgexpr->Pop()->Eopid() == COperator::EopPhysicalFilter)
+//		{
+//			CGroupArray *grpArray = pgexpr->Pdrgpgroup();
+//			CGroup *table_scan_grp = (*grpArray)[0];
+//			return table_scan_grp->GetGroupAliases(group_aliases);
+//		}
+//
+//		pgexpr = m_listGExprs.Next(pgexpr);
+//	}
+//	return group_aliases;
+//}
+
+
+// Check if group satisfies any of specified motion hints. If it satisfies
+// return distribution required by the motion hint, if not return invalid spec
+CDistributionSpec::EDistributionType
+CGroup::FSatisfiesMotionHint(CPlanHint *plan_hint)
+{
+	// no parsed hints
+	if (plan_hint == nullptr)
+	{
+		return CDistributionSpec::EdtSentinel;
+	}
+
+	// Group already satisfied a hint
+	if (this->FSatisfyHint())
+	{
+		return CDistributionSpec::EdtSentinel;
+	}
+
+	CDrvdPropRelational *drvdProps =
+		CDrvdPropRelational::GetRelationalProperties(this->Pdp());
+
+	CTableDescriptorHashSet *group_aliases = drvdProps->GetTableDescriptor();
+
+	// Group has no aliases
+	if (group_aliases->Size() == 0)
+	{
+		return gpopt::CDistributionSpec::EdtSentinel;
+	}
+
+	CMotionHint *applicable_motion_hint =
+		plan_hint->GetMotionHint(group_aliases);
+
+	// No applicable Motion hints
+	if (applicable_motion_hint == nullptr)
+	{
+		return gpopt::CDistributionSpec::EdtSentinel;
+	}
+
+	CMotionHint::MotionType motion_type = applicable_motion_hint->GetType();
+	this->SetSatisfyHint(true);
+	if (motion_type == CMotionHint::Broadcast)
+	{
+		return gpopt::CDistributionSpec::EdtReplicated;
+	}
+	else
+	{
+		return gpopt::CDistributionSpec::EdtHashed;
+	}
+
+}
 
 //---------------------------------------------------------------------------
 //	@function:

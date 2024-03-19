@@ -599,6 +599,47 @@ COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 			(CRowHint::RowsValueType) row_hint->value_type));
 	}
 
+	// Translate MotionHint => CMotionHint
+
+	for (int hint_index = 0;
+		 hint_index < hintstate->num_hints[HINT_TYPE_MOTION]; hint_index++)
+	{
+		MotionHint *motion_hint =
+			(MotionHint *) hintstate->motion_hints[hint_index];
+
+		StringPtrArray *aliases = GPOS_NEW(mp) StringPtrArray(mp);
+
+		for (int rel_index = 0; rel_index < motion_hint->nrels; rel_index++)
+		{
+			aliases->Append(GPOS_NEW(mp) CWStringConst(
+				mp, motion_hint->relname[rel_index]));
+		}
+
+		CMotionHint::MotionType motionType = CMotionHint::MotionType::Sentinel;
+		switch (motion_hint->base.hint_keyword)
+		{
+			case HINT_KEYWORD_BROADCAST:
+				motionType = CMotionHint::Broadcast;
+				break;
+			case HINT_KEYWORD_REDISTRIBUTE:
+				motionType = CMotionHint::Redistribute;
+				break;
+			default:
+			{
+				CWStringDynamic *error_message = GPOS_NEW(mp) CWStringDynamic(
+					mp, GPOS_WSZ_LIT("Unsupported plan hint: "));
+				error_message->AppendFormat(GPOS_WSZ_LIT("%s"),
+											motion_hint->base.keyword);
+
+				GPOS_RAISE(gpopt::ExmaGPOPT, gpopt::ExmiUnsupportedOp,
+						   error_message->GetBuffer());
+				break;
+			}
+		}
+
+		plan_hints->AddHint(GPOS_NEW(mp) CMotionHint(mp, aliases, motionType));
+	}
+
 	return plan_hints;
 }
 

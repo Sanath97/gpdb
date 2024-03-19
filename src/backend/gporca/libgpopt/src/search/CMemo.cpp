@@ -28,6 +28,7 @@
 #include "gpopt/exception.h"
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CLogicalCTEProducer.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpopt/search/CGroupProxy.h"
 
 using namespace gpopt;
@@ -319,11 +320,16 @@ CMemo::PexprExtractPlan(CMemoryPool *mp, CGroup *pgroupRoot,
 	}
 	else
 	{
+		// Check if this group satisfies any of the specified Motion Hints
+		CDistributionSpec::EDistributionType hint_distribution =
+			pgroupRoot->FSatisfiesMotionHint(
+				COptCtxt::PoctxtFromTLS()->GetOptimizerConfig()->GetPlanHint());
 		// If the group does not have scalar expression, which means it has only logical
 		// or physical expressions. In this case, we lookup the best optimization context
 		// for the given required plan properties, and then retrieve the best group
 		// expression under the optimization context.
-		poc = pgroupRoot->PocLookupBest(mp, ulSearchStages, prppInput);
+		poc = pgroupRoot->PocLookupBest(mp, ulSearchStages, prppInput,
+										hint_distribution);
 		GPOS_ASSERT(nullptr != poc);
 
 		pgexprBest = pgroupRoot->PgexprBest(poc);

@@ -48,6 +48,9 @@ typedef enum HintKeyword
 	HINT_KEYWORD_ROWS,
 	HINT_KEYWORD_PARALLEL,
 
+        HINT_KEYWORD_BROADCAST,
+        HINT_KEYWORD_REDISTRIBUTE,
+
 	HINT_KEYWORD_UNRECOGNIZED
 } HintKeyword;
 
@@ -73,7 +76,7 @@ typedef const char *(*HintParseFunction) (Hint *hint, HintState *hstate,
 										  Query *parse, const char *str);
 
 /* hint types */
-#define NUM_HINT_TYPE	6
+#define NUM_HINT_TYPE	7
 typedef enum HintType
 {
 	HINT_TYPE_SCAN_METHOD,
@@ -81,7 +84,8 @@ typedef enum HintType
 	HINT_TYPE_LEADING,
 	HINT_TYPE_SET,
 	HINT_TYPE_ROWS,
-	HINT_TYPE_PARALLEL
+	HINT_TYPE_PARALLEL,
+        HINT_TYPE_MOTION
 } HintType;
 
 typedef enum HintTypeBitmap
@@ -123,6 +127,15 @@ typedef struct ScanMethodHint
 	bool			regexp;
 	unsigned char	enforce_mask;
 } ScanMethodHint;
+
+/* Motion hints */
+typedef struct MotionHint
+{
+    Hint			base;
+    int				nrels;
+    char		   **relname;
+    unsigned char	enforce_mask;
+} MotionHint;
 
 typedef struct ParentIndexInfo
 {
@@ -243,6 +256,7 @@ struct HintState
 	GucContext		context;			/* which GUC parameters can we set? */
 	RowsHint	  **rows_hints;			/* parsed Rows hints */
 	ParallelHint  **parallel_hints;		/* parsed Parallel hints */
+        MotionHint **motion_hints;
 };
 
 #endif	// !OPTIMIZER_HINTS_H

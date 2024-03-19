@@ -24,7 +24,8 @@ FORCE_GENERATE_DBGSTR(CPlanHint);
 CPlanHint::CPlanHint(CMemoryPool *mp)
 	: m_mp(mp),
 	  m_scan_hints(GPOS_NEW(mp) ScanHintList(mp)),
-	  m_row_hints(GPOS_NEW(mp) RowHintList(mp))
+	  m_row_hints(GPOS_NEW(mp) RowHintList(mp)),
+	  m_motion_hints(GPOS_NEW(mp) MotionHintList(mp))
 {
 }
 
@@ -32,6 +33,7 @@ CPlanHint::~CPlanHint()
 {
 	m_scan_hints->Release();
 	m_row_hints->Release();
+	m_motion_hints->Release();
 }
 
 void
@@ -44,6 +46,12 @@ void
 CPlanHint::AddHint(CRowHint *hint)
 {
 	m_row_hints->Append(hint);
+}
+
+void
+CPlanHint::AddHint(CMotionHint *hint)
+{
+	m_motion_hints->Append(hint);
 }
 
 
@@ -68,6 +76,41 @@ CPlanHint::GetScanHint(const CWStringBase *name)
 		}
 	}
 	return nullptr;
+}
+
+
+CMotionHint *
+CPlanHint::GetMotionHint(CTableDescriptorHashSet *ptabdescs)
+{
+	if (ptabdescs->Size() == 0)
+	{
+		return nullptr;
+	}
+
+	StringPtrArray *aliases = GPOS_NEW(m_mp) StringPtrArray(m_mp);
+	CTableDescriptorHashSetIter hsiter(ptabdescs);
+
+	while (hsiter.Advance())
+	{
+		const CTableDescriptor *ptabdesc = hsiter.Get();
+		aliases->Append(GPOS_NEW(m_mp) CWStringConst(
+			m_mp, ptabdesc->Name().Pstr()->GetBuffer()));
+	}
+	// Motion hint aliases are sorted because the hint is order agnostic.
+	aliases->Sort(CWStringBase::Compare);
+
+	CMotionHint *matching_hint = nullptr;
+	for (ULONG ul = 0; ul < m_motion_hints->Size(); ul++)
+	{
+		CMotionHint *hint = (*m_motion_hints)[ul];
+		if (aliases->Equals(hint->GetAliasNames()))
+		{
+			matching_hint = hint;
+			break;
+		}
+	}
+	aliases->Release();
+	return matching_hint;
 }
 
 //---------------------------------------------------------------------------

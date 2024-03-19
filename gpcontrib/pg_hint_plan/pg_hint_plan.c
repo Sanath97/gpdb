@@ -100,6 +100,8 @@ PG_MODULE_MAGIC;
 #define HINT_LEADING			"Leading"
 #define HINT_SET				"Set"
 #define HINT_ROWS				"Rows"
+#define HINT_BROADCAST                  "Broadcast"
+#define HINT_REDISTRIBUTE                  "Redistribute"
 
 #define HINT_ARRAY_DEFAULT_INITSIZE 8
 
@@ -130,6 +132,12 @@ enum
 	ENABLE_MERGEJOIN = 0x02,
 	ENABLE_HASHJOIN = 0x04
 } JOIN_TYPE_BITS;
+
+enum
+{
+    ENABLE_BROADCASTMOTION = 0x01,
+    ENABLE_REDISTRIBUTEMOTION = 0x02,
+} MOTION_TYPE_BITS;
 
 #define ENABLE_ALL_SCAN (ENABLE_SEQSCAN | ENABLE_INDEXSCAN | \
 						 ENABLE_BITMAPSCAN | ENABLE_TIDSCAN | \
@@ -167,6 +175,9 @@ typedef enum HintKeyword
 	HINT_KEYWORD_ROWS,
 	HINT_KEYWORD_PARALLEL,
 
+        HINT_KEYWORD_BROADCAST,
+        HINT_KEYWORD_REDISTRIBUTE,
+
 	HINT_KEYWORD_UNRECOGNIZED
 } HintKeyword;
 
@@ -192,7 +203,7 @@ typedef const char *(*HintParseFunction) (Hint *hint, HintState *hstate,
 										  Query *parse, const char *str);
 
 /* hint types */
-#define NUM_HINT_TYPE	6
+#define NUM_HINT_TYPE	7
 typedef enum HintType
 {
 	HINT_TYPE_SCAN_METHOD,
@@ -200,7 +211,8 @@ typedef enum HintType
 	HINT_TYPE_LEADING,
 	HINT_TYPE_SET,
 	HINT_TYPE_ROWS,
-	HINT_TYPE_PARALLEL
+	HINT_TYPE_PARALLEL,
+        HINT_TYPE_MOTION
 } HintType;
 
 typedef enum HintTypeBitmap
@@ -215,7 +227,8 @@ static const char *HintTypeName[] = {
 	"leading",
 	"set",
 	"rows",
-	"parallel"
+	"parallel",
+        "motion"
 };
 
 /* hint status */
@@ -267,6 +280,15 @@ typedef struct ScanMethodHint
 	bool			regexp;
 	unsigned char	enforce_mask;
 } ScanMethodHint;
+
+/* Motion hints */
+typedef struct MotionHint
+{
+    Hint			base;
+    int				nrels;
+    char		   **relname;
+    unsigned char	enforce_mask;
+} MotionHint;
 
 typedef struct ParentIndexInfo
 {
@@ -387,6 +409,7 @@ struct HintState
 	GucContext		context;			/* which GUC parameters can we set? */
 	RowsHint	  **rows_hints;			/* parsed Rows hints */
 	ParallelHint  **parallel_hints;		/* parsed Parallel hints */
+        MotionHint **motion_hints;
 };
 
 /*
@@ -474,6 +497,15 @@ static void ParallelHintDesc(ParallelHint *hint, StringInfo buf, bool nolf);
 static int ParallelHintCmp(const ParallelHint *a, const ParallelHint *b);
 static const char *ParallelHintParse(ParallelHint *hint, HintState *hstate,
 									 Query *parse, const char *str);
+
+/* Motion hint callbacks */
+static Hint *MotionHintCreate(const char *hint_str, const char *keyword,
+                                  HintKeyword hint_keyword);
+static void MotionHintDelete(MotionHint *hint);
+static void MotionHintDesc(MotionHint *hint, StringInfo buf, bool nolf);
+static int MotionHintCmp(const MotionHint *a, const MotionHint *b);
+static const char *MotionHintParse(MotionHint *hint, HintState *hstate,
+                                       Query *parse, const char *str);
 
 static void quote_value(StringInfo buf, const char *value);
 
@@ -617,6 +649,9 @@ static const HintParser parsers[] = {
 	{HINT_SET, SetHintCreate, HINT_KEYWORD_SET},
 	{HINT_ROWS, RowsHintCreate, HINT_KEYWORD_ROWS},
 	{HINT_PARALLEL, ParallelHintCreate, HINT_KEYWORD_PARALLEL},
+
+        {HINT_BROADCAST, MotionHintCreate, HINT_KEYWORD_BROADCAST},
+        {HINT_REDISTRIBUTE, MotionHintCreate, HINT_KEYWORD_REDISTRIBUTE},
 
 	{NULL, NULL, HINT_KEYWORD_UNRECOGNIZED}
 };
@@ -1010,6 +1045,47 @@ ParallelHintDelete(ParallelHint *hint)
 	pfree(hint);
 }
 
+static Hint *
+MotionHintCreate(const char *hint_str, const char *keyword,
+                     HintKeyword hint_keyword)
+{
+    MotionHint *hint;
+
+    hint = palloc(sizeof(MotionHint));
+    hint->base.hint_str = hint_str;
+    hint->base.keyword = keyword;
+    hint->base.hint_keyword = hint_keyword;
+    hint->base.type = HINT_TYPE_MOTION;
+    hint->base.state = HINT_STATE_NOTUSED;
+    hint->base.delete_func = (HintDeleteFunction) MotionHintDelete;
+    hint->base.desc_func = (HintDescFunction) MotionHintDesc;
+    hint->base.cmp_func = (HintCmpFunction) MotionHintCmp;
+    hint->base.parse_func = (HintParseFunction) MotionHintParse;
+    hint->relname = NULL;
+    hint->nrels = 0;
+    hint->enforce_mask = 0;
+
+    return (Hint *) hint;
+}
+
+static void
+MotionHintDelete(MotionHint *hint)
+{
+    if (!hint)
+        return;
+
+    if (hint->relname)
+    {
+        int	i;
+
+        for (i = 0; i < hint->nrels; i++)
+            pfree(hint->relname[i]);
+        pfree(hint->relname);
+    }
+
+    pfree(hint);
+}
+
 
 static HintState *
 HintStateCreate(void)
@@ -1042,6 +1118,7 @@ HintStateCreate(void)
 	hstate->set_hints = NULL;
 	hstate->rows_hints = NULL;
 	hstate->parallel_hints = NULL;
+        hstate->motion_hints = NULL;
 
 	return hstate;
 }
@@ -1262,6 +1339,25 @@ ParallelHintDesc(ParallelHint *hint, StringInfo buf, bool nolf)
 		appendStringInfoChar(buf, '\n');
 }
 
+static void
+MotionHintDesc(MotionHint *hint, StringInfo buf, bool nolf)
+{
+    int	i;
+
+    appendStringInfo(buf, "%s(", hint->base.keyword);
+    if (hint->relname != NULL)
+    {
+        quote_value(buf, hint->relname[0]);
+        for (i = 1; i < hint->nrels; i++)
+        {
+            appendStringInfoCharMacro(buf, ' ');
+            quote_value(buf, hint->relname[i]);
+        }
+    }
+    appendStringInfoString(buf, ")");
+    if (!nolf)
+        appendStringInfoChar(buf, '\n');
+}
 /*
  * Append string which represents all hints in a given state to buf, with
  * preceding title with them.
@@ -1417,6 +1513,24 @@ static int
 ParallelHintCmp(const ParallelHint *a, const ParallelHint *b)
 {
 	return RelnameCmp(&a->relname, &b->relname);
+}
+
+static int
+MotionHintCmp(const MotionHint *a, const MotionHint *b)
+{
+    int	i;
+
+    if (a->nrels != b->nrels)
+        return a->nrels - b->nrels;
+
+    for (i = 0; i < a->nrels; i++)
+    {
+        int	result;
+        if ((result = RelnameCmp(&a->relname[i], &b->relname[i])) != 0)
+            return result;
+    }
+
+    return 0;
 }
 
 static int
@@ -2137,6 +2251,8 @@ create_hintstate(Query *parse, const char *hints)
 		hstate->num_hints[HINT_TYPE_SET]);
 	hstate->parallel_hints = (ParallelHint **) (hstate->rows_hints +
 		hstate->num_hints[HINT_TYPE_ROWS]);
+        hstate->motion_hints = (MotionHint **) (hstate->parallel_hints +
+                hstate->num_hints[HINT_TYPE_PARALLEL]);
 
 	return hstate;
 }
@@ -2592,6 +2708,60 @@ ParallelHintParse(ParallelHint *hint, HintState *hstate, Query *parse,
 		max_hint_nworkers = nworkers;
 
 	return str;
+}
+
+/*
+ * Parse inside of parentheses of Motion hints.
+ */
+static const char *
+MotionHintParse(MotionHint *hint, HintState *hstate, Query *parse,
+                    const char *str)
+{
+    const char	   *keyword = hint->base.keyword;
+    HintKeyword		hint_keyword = hint->base.hint_keyword;
+    List		   *name_list = NIL;
+
+    if ((str = parse_parentheses(str, &name_list, hint_keyword)) == NULL)
+        return NULL;
+
+    hint->nrels = list_length(name_list);
+    if (hint->nrels > 0)
+    {
+        ListCell   *l;
+        int			i = 0;
+
+        /*
+         * Transform relation names from list to array to sort them with qsort
+         * after.
+         */
+        hint->relname = palloc(sizeof(char *) * hint->nrels);
+        foreach (l, name_list)
+        {
+            hint->relname[i] = lfirst(l);
+            i++;
+        }
+    }
+
+    list_free(name_list);
+
+    /* Sort hints in alphabetical order of relation names. */
+    qsort(hint->relname, hint->nrels, sizeof(char *), RelnameCmp);
+
+    switch (hint_keyword)
+    {
+        case HINT_KEYWORD_BROADCAST:
+            hint->enforce_mask = ENABLE_BROADCASTMOTION;
+            break;
+        case HINT_KEYWORD_REDISTRIBUTE:
+            hint->enforce_mask = ENABLE_REDISTRIBUTEMOTION;
+            break;
+        default:
+            hint_ereport(str, ("Unrecognized hint keyword \"%s\".", keyword));
+            return NULL;
+            break;
+    }
+
+    return str;
 }
 
 /*
