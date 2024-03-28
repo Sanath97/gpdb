@@ -122,3 +122,40 @@ EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
+
+
+--------------------------------------------------------------------
+-- Test Semi/AntiSemi Joins with RowHints
+--------------------------------------------------------------------
+\o results/pg_hint_plan.tmpout
+/*+
+Rows(t1 t2 #123)
+*/
+EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a IN (SELECT t2.a FROM our_table t2);
+\o
+\! sql/maskout.sh results/pg_hint_plan.tmpout
+
+\o results/pg_hint_plan.tmpout
+/*+
+Rows(t1 t2 #123)
+*/
+EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a NOT IN (SELECT t2.a FROM our_table t2);
+\o
+\! sql/maskout.sh results/pg_hint_plan.tmpout
+
+---------------------------------------------------------------------------------------------
+-- Test case where we disable InnerJoin alternatives so that Stats for the join group are
+-- derived from LeftSemi/LeftAntiSemiJoin operators instead of CLogicalJoin operator.
+---------------------------------------------------------------------------------------------
+
+SELECT disable_xform('CXformLeftSemiJoin2InnerJoin');
+
+\o results/pg_hint_plan.tmpout
+/*+
+Rows(t1 t2 #123)
+*/
+EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a NOT IN (SELECT t2.a FROM our_table t2);
+\o
+\! sql/maskout.sh results/pg_hint_plan.tmpout
+
+SELECT enable_xform('CXformLeftSemiJoin2InnerJoin');
