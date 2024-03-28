@@ -129,15 +129,15 @@ COperator::PfpDeriveFromChildren(CMemoryPool *mp, CExpressionHandle &exprhdl,
 //
 //---------------------------------------------------------------------------
 CTableDescriptorHashSet *
-COperator::DeriveTableDescriptor(CMemoryPool *mp, CExpressionHandle &exprhdl) const
+COperator::DeriveTableDescriptor(CMemoryPool *mp,
+								 CExpressionHandle &exprhdl) const
 {
 	CTableDescriptorHashSet *table_descriptor_set =
 		GPOS_NEW(mp) CTableDescriptorHashSet(mp);
 
 	for (ULONG ul = 0; ul < exprhdl.Arity(); ul++)
 	{
-		CTableDescriptorHashSetIter hsiter(
-			exprhdl.DeriveTableDescriptor(ul));
+		CTableDescriptorHashSetIter hsiter(exprhdl.DeriveTableDescriptor(ul));
 		while (hsiter.Advance())
 		{
 			CTableDescriptor *ptabdesc =
