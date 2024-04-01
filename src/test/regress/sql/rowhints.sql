@@ -159,3 +159,33 @@ EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a NOT IN (SELECT t2.a FROM our_tab
 \! sql/maskout.sh results/pg_hint_plan.tmpout
 
 SELECT enable_xform('CXformLeftSemiJoin2InnerJoin');
+
+--------------------------------------------------------------------
+-- Test Joins from project sub queries with RowHints
+--------------------------------------------------------------------
+
+CREATE TABLE foo(a int, b int) DISTRIBUTED BY (a);
+CREATE TABLE bar(a int, b int) DISTRIBUTED BY (a);
+
+INSERT INTO bar SELECT i, i+3 FROM generate_series(1,5) i;
+-- Insert single row
+INSERT INTO foo values (-2, 34);
+
+ANALYZE foo;
+ANALYZE bar;
+
+-- Nested Loop Left Join operator estimates 41 rows(per segment for 3 segment cluster)
+-- honoring the specified RowHint. However, Gather Motion estimates total number of
+-- rows as 5 because the outer table bar only has 5 rows and ComputeScalar is being smart
+-- about it and estimates 5 rows.
+\o results/pg_hint_plan.tmpout
+/*+
+Rows(f b #123)
+*/
+EXPLAIN SELECT (SELECT a FROM foo AS f) FROM bar AS b;
+\o
+\! sql/maskout.sh results/pg_hint_plan.tmpout
+
+-- Clean Up
+DROP TABLE foo;
+DROP TABLE bar;

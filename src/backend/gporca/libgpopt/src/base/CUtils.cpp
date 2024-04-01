@@ -2195,7 +2195,7 @@ CUtils::PexprLogicalSelect(CMemoryPool *mp, CExpression *pexpr,
 		ptabdesc = pexpr->DeriveTableDescriptor()->First();
 		GPOS_ASSERT(nullptr != ptabdesc);
 	}
-	else if(pexpr->Pop()->Eopid() == CLogical::EopLogicalSelect)
+	else if (pexpr->Pop()->Eopid() == CLogical::EopLogicalSelect)
 	{
 		ptabdesc = CLogicalSelect::PopConvert(pexpr->Pop())->Ptabdesc();
 	}
