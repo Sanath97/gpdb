@@ -320,12 +320,14 @@ COptimizer::PdxlnOptimize(
 
 			CPlanHint *plan_hint =
 				COptCtxt::PoctxtFromTLS()->GetOptimizerConfig()->GetPlanHint();
-			ILogger *log = CTask::Self()->GetOutputLogger();
 			if (plan_hint != nullptr)
 			{
+				CWStringDynamic strPlanhint(mp);
+				COstreamString ossPlanhint(&strPlanhint);
+
+				plan_hint->OsPrint(ossPlanhint);
 				// log Used/Un-used plan hints
-				log->Trace(__FILE__, __LINE__, false,
-						   plan_hint->DbgStr().c_str());
+				GPOS_TRACE(strPlanhint.GetBuffer());
 			}
 
 			// translate plan into DXL

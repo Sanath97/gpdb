@@ -25,7 +25,7 @@ public:
 	};
 
 private:
-	HintStatus hint_status;
+	HintStatus hint_status{HINT_STATE_NOTUSED};
 
 public:
 	void

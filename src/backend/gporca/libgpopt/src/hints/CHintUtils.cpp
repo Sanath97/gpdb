@@ -50,12 +50,7 @@ CHintUtils::SatisfiesPlanHints(CLogicalGet *pop, CPlanHint *plan_hint)
 	}
 
 	// If operator matches hint operator _or_ it doesn't match and is a not.
-	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
-	if (satisfy_operator)
-	{
-		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
-	}
-	return satisfy_operator;
+	return scan_hint->SatisfiesOperator(pop);
 }
 
 BOOL
@@ -76,18 +71,12 @@ CHintUtils::SatisfiesPlanHints(CLogicalIndexGet *pop, CPlanHint *plan_hint)
 				(*scan_hint->GetIndexNames())[ul]))
 		{
 			// If operator matches hint operator and index matches hint index.
-			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	BOOL satisfy_operator = scan_hint->GetIndexNames()->Size() == 0 &&
-							scan_hint->SatisfiesOperator(pop);
-	if (satisfy_operator)
-	{
-		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
-	}
-	return satisfy_operator;
+	return scan_hint->GetIndexNames()->Size() == 0 &&
+		   scan_hint->SatisfiesOperator(pop);
 }
 
 
@@ -103,12 +92,7 @@ CHintUtils::SatisfiesPlanHints(CLogicalDynamicGet *pop, CPlanHint *plan_hint)
 		return true;
 	}
 
-	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
-	if (satisfy_operator)
-	{
-		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
-	}
-	return satisfy_operator;
+	return scan_hint->SatisfiesOperator(pop);
 }
 
 
@@ -131,18 +115,12 @@ CHintUtils::SatisfiesPlanHints(CLogicalDynamicIndexGet *pop,
 				(*scan_hint->GetIndexNames())[ul]))
 		{
 			// If operator matches hint operator and index matches hint index.
-			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	BOOL satisfy_operator = scan_hint->GetIndexNames()->Size() == 0 &&
-							scan_hint->SatisfiesOperator(pop);
-	if (satisfy_operator)
-	{
-		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
-	}
-	return satisfy_operator;
+	return scan_hint->GetIndexNames()->Size() == 0 &&
+		   scan_hint->SatisfiesOperator(pop);
 }
 
 
@@ -165,17 +143,12 @@ CHintUtils::SatisfiesPlanHints(CScalarBitmapIndexProbe *pop,
 				(*scan_hint->GetIndexNames())[ul]))
 		{
 			// If operator matches hint operator and index matches hint index.
-			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
-	if (satisfy_operator)
-	{
-		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
-	}
-	return satisfy_operator;
+	return scan_hint->GetIndexNames()->Size() == 0 &&
+		   scan_hint->SatisfiesOperator(pop);
 }
 
 BOOL
