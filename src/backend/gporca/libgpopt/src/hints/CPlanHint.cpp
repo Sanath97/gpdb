@@ -118,6 +118,7 @@ CPlanHint::GetRowHint(CTableDescriptorHashSet *ptabdescs)
 		if (aliases->Equals(hint->GetAliasNames()))
 		{
 			matching_hint = hint;
+			matching_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			break;
 		}
 	}
@@ -344,10 +345,10 @@ CPlanHint::GetJoinHint(CExpression *pexpr)
 
 		bool has_direct_child = false;
 		bool is_hint_valid_on_grandchildren = true;
-		for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
+		for (ULONG i = 0; i < pexpr->Arity(); i++)
 		{
 			CTableDescriptorHashSet *childtabs =
-				(*pexpr)[ul]->DeriveTableDescriptor();
+				(*pexpr)[i]->DeriveTableDescriptor();
 
 			// is a direct child and a hint
 			if (childtabs->Size() == 1 &&
@@ -393,6 +394,7 @@ CPlanHint::GetJoinHint(CExpression *pexpr)
 		if (has_direct_child && is_hint_valid_on_grandchildren)
 		{
 			// We found a matching hint, return it
+			hint->SetHintStatus(IHint::HINT_STATE_USED);
 			pexprAliases->Release();
 			return hint;
 		}
@@ -469,22 +471,55 @@ CPlanHint::OsPrint(IOstream &os) const
 	}
 
 	os << "\n";
+	os << "Used Hints:";
+	os << "\n";
 	for (ULONG ul = 0; ul < m_scan_hints->Size(); ul++)
 	{
-		os << "  ";
-		(*m_scan_hints)[ul]->OsPrint(os) << "\n";
+		if ((*m_scan_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_USED)
+		{
+			(*m_scan_hints)[ul]->OsPrint(os) << "\n";
+		}
 	}
 
 	for (ULONG ul = 0; ul < m_row_hints->Size(); ul++)
 	{
-		os << "  ";
-		(*m_row_hints)[ul]->OsPrint(os) << "\n";
+		if ((*m_row_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_USED)
+		{
+			(*m_row_hints)[ul]->OsPrint(os) << "\n";
+		}
 	}
 
 	for (ULONG ul = 0; ul < m_join_hints->Size(); ul++)
 	{
-		os << "  ";
-		(*m_join_hints)[ul]->OsPrint(os) << "\n";
+		if ((*m_join_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_USED)
+		{
+			(*m_join_hints)[ul]->OsPrint(os) << "\n";
+		}
+	}
+	os << "Un-Used Hints:";
+	os << "\n";
+	for (ULONG ul = 0; ul < m_scan_hints->Size(); ul++)
+	{
+		if ((*m_scan_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_NOTUSED)
+		{
+			(*m_scan_hints)[ul]->OsPrint(os) << "\n";
+		}
+	}
+
+	for (ULONG ul = 0; ul < m_row_hints->Size(); ul++)
+	{
+		if ((*m_row_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_NOTUSED)
+		{
+			(*m_row_hints)[ul]->OsPrint(os) << "\n";
+		}
+	}
+
+	for (ULONG ul = 0; ul < m_join_hints->Size(); ul++)
+	{
+		if ((*m_join_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_NOTUSED)
+		{
+			(*m_join_hints)[ul]->OsPrint(os) << "\n";
+		}
 	}
 	os << "]";
 	return os;

@@ -318,6 +318,16 @@ COptimizer::PdxlnOptimize(
 			CExpression *pexprPlan = PexprOptimize(mp, pqc, search_stage_array);
 			GPOS_CHECK_ABORT;
 
+			CPlanHint *plan_hint =
+				COptCtxt::PoctxtFromTLS()->GetOptimizerConfig()->GetPlanHint();
+			ILogger *log = CTask::Self()->GetOutputLogger();
+			if (plan_hint != nullptr)
+			{
+				// log Used/Un-used plan hints
+				log->Trace(__FILE__, __LINE__, false,
+						   plan_hint->DbgStr().c_str());
+			}
+
 			// translate plan into DXL
 			pdxlnPlan = CreateDXLNode(mp, md_accessor, pexprPlan,
 									  pqc->PdrgPcr(), pdrgpmdname, ulHosts);

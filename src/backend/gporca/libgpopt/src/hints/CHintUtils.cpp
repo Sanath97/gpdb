@@ -49,8 +49,13 @@ CHintUtils::SatisfiesPlanHints(CLogicalGet *pop, CPlanHint *plan_hint)
 		return true;
 	}
 
-	// If opertor matches hint operator _or_ it doesn't match and is a not.
-	return scan_hint->SatisfiesOperator(pop);
+	// If operator matches hint operator _or_ it doesn't match and is a not.
+	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
+	if (satisfy_operator)
+	{
+		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
+	}
+	return satisfy_operator;
 }
 
 BOOL
@@ -70,13 +75,19 @@ CHintUtils::SatisfiesPlanHints(CLogicalIndexGet *pop, CPlanHint *plan_hint)
 		if (pop->Pindexdesc()->Name().Pstr()->Equals(
 				(*scan_hint->GetIndexNames())[ul]))
 		{
-			// If opertor matches hint operator and index matches hint index.
+			// If operator matches hint operator and index matches hint index.
+			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	return scan_hint->GetIndexNames()->Size() == 0 &&
-		   scan_hint->SatisfiesOperator(pop);
+	BOOL satisfy_operator = scan_hint->GetIndexNames()->Size() == 0 &&
+							scan_hint->SatisfiesOperator(pop);
+	if (satisfy_operator)
+	{
+		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
+	}
+	return satisfy_operator;
 }
 
 
@@ -92,7 +103,12 @@ CHintUtils::SatisfiesPlanHints(CLogicalDynamicGet *pop, CPlanHint *plan_hint)
 		return true;
 	}
 
-	return scan_hint->SatisfiesOperator(pop);
+	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
+	if (satisfy_operator)
+	{
+		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
+	}
+	return satisfy_operator;
 }
 
 
@@ -114,13 +130,19 @@ CHintUtils::SatisfiesPlanHints(CLogicalDynamicIndexGet *pop,
 		if (pop->Pindexdesc()->Name().Pstr()->Equals(
 				(*scan_hint->GetIndexNames())[ul]))
 		{
-			// If opertor matches hint operator and index matches hint index.
+			// If operator matches hint operator and index matches hint index.
+			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	return scan_hint->GetIndexNames()->Size() == 0 &&
-		   scan_hint->SatisfiesOperator(pop);
+	BOOL satisfy_operator = scan_hint->GetIndexNames()->Size() == 0 &&
+							scan_hint->SatisfiesOperator(pop);
+	if (satisfy_operator)
+	{
+		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
+	}
+	return satisfy_operator;
 }
 
 
@@ -142,13 +164,18 @@ CHintUtils::SatisfiesPlanHints(CScalarBitmapIndexProbe *pop,
 		if (pop->Pindexdesc()->Name().Pstr()->Equals(
 				(*scan_hint->GetIndexNames())[ul]))
 		{
-			// If opertor matches hint operator and index matches hint index.
+			// If operator matches hint operator and index matches hint index.
+			scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
 			return scan_hint->SatisfiesOperator(pop);
 		}
 	}
 
-	return scan_hint->GetIndexNames()->Size() == 0 &&
-		   scan_hint->SatisfiesOperator(pop);
+	BOOL satisfy_operator = scan_hint->SatisfiesOperator(pop);
+	if (satisfy_operator)
+	{
+		scan_hint->SetHintStatus(IHint::HINT_STATE_USED);
+	}
+	return satisfy_operator;
 }
 
 const WCHAR *

@@ -672,6 +672,7 @@ COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 			hint = GPOS_NEW(mp) CScanHint(
 				mp, GPOS_NEW(mp) CWStringConst(mp, scan_hint->relname),
 				indexnames);
+			hint->SetHintStatus(IHint::HINT_STATE_NOTUSED);
 			plan_hints->AddHint(hint);
 		}
 		hint->AddType(type);
@@ -692,9 +693,11 @@ COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 				GPOS_NEW(mp) CWStringConst(mp, row_hint->relnames[rel_index]));
 		}
 
-		plan_hints->AddHint(GPOS_NEW(mp) CRowHint(
-			mp, aliases, CDouble(row_hint->rows),
-			(CRowHint::RowsValueType) row_hint->value_type));
+		CRowHint *hint = GPOS_NEW(mp)
+			CRowHint(mp, aliases, CDouble(row_hint->rows),
+					 (CRowHint::RowsValueType) row_hint->value_type);
+		hint->SetHintStatus(IHint::HINT_STATE_NOTUSED);
+		plan_hints->AddHint(hint);
 	}
 
 
@@ -713,7 +716,9 @@ COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 			joinnode = GenerateJoinNodes(mp, leading_hint->outer_inner);
 			if (nullptr != joinnode)
 			{
-				plan_hints->AddHint(GPOS_NEW(mp) CJoinHint(mp, joinnode));
+				CJoinHint *hint = GPOS_NEW(mp) CJoinHint(mp, joinnode);
+				hint->SetHintStatus(IHint::HINT_STATE_NOTUSED);
+				plan_hints->AddHint(hint);
 			}
 		}
 		else if (nullptr != leading_hint->relations)
@@ -722,7 +727,9 @@ COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 			joinnode = GenerateJoinNodes(mp, leading_hint->relations);
 			if (nullptr != joinnode)
 			{
-				plan_hints->AddHint(GPOS_NEW(mp) CJoinHint(mp, joinnode));
+				CJoinHint *hint = GPOS_NEW(mp) CJoinHint(mp, joinnode);
+				hint->SetHintStatus(IHint::HINT_STATE_NOTUSED);
+				plan_hints->AddHint(hint);
 			}
 		}
 	}
