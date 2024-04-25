@@ -12,6 +12,12 @@ CREATE TABLE t2(a int, b int);
 CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int);
+SET client_min_messages TO log;
+-- Replace timestamp while logging with static string
+-- start_matchsubs
+-- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/
+-- s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/YYYY-MM-DD HH:MM:SS:MSMSMS/
+-- end_matchsubs
 -- Test that join order hint for every tree shape is applied.
 --
 -- These check that every possible order on 3 relations. There are 12 possible
@@ -24,6 +30,10 @@ CREATE TABLE t5(a int, b int);
 -- T3 T1 T2   =>   (T3 T1) T2,  T3 (T1 T2)
 -- T3 T2 T1   =>   (T3 T2) T1,  T3 (T2 T1)
 /*+
+    Leading((t1 (t2 t3)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading((t1 (t2 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -46,6 +56,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading((t1 (t3 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading((t1 (t3 t2)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -62,6 +76,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading(((t2 t3) t1))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading(((t2 t3) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -84,6 +102,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading(((t3 t2) t1))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -100,6 +122,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading(((t1 t3) t2))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading(((t1 t3) t2))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -122,6 +148,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading(((t3 t1) t2))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading(((t3 t1) t2))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -138,6 +168,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading((t2 (t1 t3)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading((t2 (t1 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -160,6 +194,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading((t2 (t3 t1)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading((t2 (t3 t1)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -176,6 +214,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading(((t1 t2) t3))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading(((t1 t2) t3))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -198,6 +240,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading(((t2 t1) t3))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading(((t2 t1) t3))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -217,6 +263,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading((t3 (t1 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading((t3 (t1 t2)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -233,6 +283,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading((t3 (t2 t1)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading((t3 (t2 t1)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -259,6 +313,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading((t2 (t1 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, (SELECT * FROM t3 LIMIT 42) AS q;
+LOG:  statement: /*+
+    Leading((t2 (t1 t3)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, (SELECT * FROM t3 LIMIT 42) AS q;
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -278,6 +336,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, (SELECT * FROM t3 LIMIT 42) AS q;
 (14 rows)
 
 /*+
+    Leading(((t5 (t4 t3)) (t1 t2)))
+ */
+EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
+LOG:  statement: /*+
     Leading(((t5 (t4 t3)) (t1 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
@@ -311,6 +373,10 @@ EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t
   Leading((t1 (t2 t5)))
 */
 EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t1, t2, t5 LIMIT 42) q, t4, t3;
+LOG:  statement: /*+
+  Leading((t1 (t2 t5)))
+*/
+EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t1, t2, t5 LIMIT 42) q, t4, t3;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -341,6 +407,10 @@ EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t1, t2, t5 LIMIT 42) q, t4, t3;
     Leading((((t1 t2) t3) t4))
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2, t3 GROUP BY t1.a, t2.a) AS q, t4;
+LOG:  statement: /*+
+    Leading((((t1 t2) t3) t4))
+ */
+EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2, t3 GROUP BY t1.a, t2.a) AS q, t4;
                                       QUERY PLAN                                       
 ---------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -363,6 +433,11 @@ EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2, t3 GROUP BY t1
 (17 rows)
 
 /*+
+    Leading(((((g2_t1 g2_t2) g2_t3) t4) (g1_t1 (g1_t3 g1_t2))))
+ */
+EXPLAIN (COSTS OFF) SELECT * FROM (SELECT g1_t1.a, g1_t2.a FROM t1 AS g1_t1, t2 AS g1_t2, t3 AS g1_t3 GROUP BY g1_t1.a, g1_t2.a) AS q1,
+                                  (SELECT g2_t1.a, g2_t2.a FROM t1 AS g2_t1, t2 AS g2_t2, t3 AS g2_t3 GROUP BY g2_t1.a, g2_t2.a) AS q2, t4, t5;
+LOG:  statement: /*+
     Leading(((((g2_t1 g2_t2) g2_t3) t4) (g1_t1 (g1_t3 g1_t2))))
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT g1_t1.a, g1_t2.a FROM t1 AS g1_t1, t2 AS g1_t2, t3 AS g1_t3 GROUP BY g1_t1.a, g1_t2.a) AS q1,
@@ -416,6 +491,16 @@ WITH cte AS
     SELECT * FROM t1, t2, t3
 )
 SELECT * FROM cte, t4, t5;
+LOG:  statement: /*+
+    Leading(((t3 t2) t1))
+    Leading((t5 t4))
+ */
+EXPLAIN (COSTS OFF)
+WITH cte AS
+(
+    SELECT * FROM t1, t2, t3
+)
+SELECT * FROM cte, t4, t5;
                                             QUERY PLAN                                             
 ---------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -445,6 +530,10 @@ SELECT * FROM cte, t4, t5;
 -- No plan joins (t2 t3) becase the query has LIMIT on (t1 t2) which must be
 -- applied after joining (t1 t2)
 /*+
+    Leading((t1 t3))
+ */
+EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
+LOG:  statement: /*+
     Leading((t1 t3))
  */
 EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
@@ -479,6 +568,10 @@ EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t
     Leading((t2 t3))
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2 GROUP BY t1.a, t2.a) AS q, t3;
+LOG:  statement: /*+
+    Leading((t2 t3))
+ */
+EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2 GROUP BY t1.a, t2.a) AS q, t3;
                                    QUERY PLAN                                    
 ---------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -501,6 +594,10 @@ EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2 GROUP BY t1.a, 
     Leading(((t1 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2;
+LOG:  statement: /*+
+    Leading(((t1 t2)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2;
 INFO:  pg_hint_plan: hint syntax error at or near "Leading(((t1 t2)))
  "
 DETAIL:  Leading hint requires two sets of relations when parentheses nests.
@@ -517,6 +614,10 @@ DETAIL:  Leading hint requires two sets of relations when parentheses nests.
 
 -- syntax error: cannot mix directed and non-directed hint
 /*+
+    Leading((t1 (t2 t3 t4)))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3, t4;
+LOG:  statement: /*+
     Leading((t1 (t2 t3 t4)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3, t4;
@@ -551,6 +652,10 @@ DETAIL:  Leading hint requires two sets of relations when parentheses nests.
   Leading(((t1 t5) (t2 t4)))
 */
 EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
+LOG:  statement: /*+
+  Leading(((t1 t5) (t2 t4)))
+*/
+EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -582,6 +687,10 @@ EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, 
 -- t1 and t3 are leaf nodes of different joins. Hint cannot join them together
 -- without first completing join of all relations in one join.
 /*+
+  Leading(((t1 t3) (t2 t4)))
+*/
+EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
+LOG:  statement: /*+
   Leading(((t1 t3) (t2 t4)))
 */
 EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
@@ -620,6 +729,11 @@ EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, 
   Leading((t2 t1))
 */
 EXPLAIN (costs off) SELECT * FROM t1, t2;
+LOG:  statement: /*+
+  Leading((t1 t2))
+  Leading((t2 t1))
+*/
+EXPLAIN (costs off) SELECT * FROM t1, t2;
 INFO:  pg_hint_plan: hint syntax error at or near "Leading((t1 t2))
   Leading((t2 t1))
 "
@@ -636,6 +750,10 @@ DETAIL:  Conflict leading hint.
 (7 rows)
 
 /*+
+    Leading((((t5 t4) (t1 t3)) t2))
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
+LOG:  statement: /*+
     Leading((((t5 t4) (t1 t3)) t2))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
@@ -666,6 +784,10 @@ EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
     Leading(((t5 t4) (t1 t3)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
+LOG:  statement: /*+
+    Leading(((t5 t4) (t1 t3)))
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
                                          QUERY PLAN                                          
 ---------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -690,6 +812,10 @@ EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
 (19 rows)
 
 /*+
+    Leading((t2 t1))
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
+LOG:  statement: /*+
     Leading((t2 t1))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
@@ -726,6 +852,10 @@ EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3
     Leading((t5 (((t4 t3) t2) t1)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
+LOG:  statement: /*+
+    Leading((t5 (((t4 t3) t2) t1)))
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
                                       QUERY PLAN                                       
 ---------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -756,6 +886,10 @@ EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3
 (25 rows)
 
 /*+
+    Leading((t5 (((t4 t3) t2) t1)))
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a+1 AND t3.a>42, t4, t5;
+LOG:  statement: /*+
     Leading((t5 (((t4 t3) t2) t1)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a+1 AND t3.a>42, t4, t5;
@@ -805,6 +939,11 @@ EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3
   Leading((t1 (t2 t5)))
 */
 EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
+LOG:  statement: /*+
+  Leading((t3 t4))
+  Leading((t1 (t2 t5)))
+*/
+EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -837,6 +976,11 @@ EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
   Leading(t1 t2 t5)
 */
 EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
+LOG:  statement: /*+
+  Leading((t3 t4))
+  Leading(t1 t2 t5)
+*/
+EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -864,6 +1008,11 @@ EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
 (22 rows)
 
 /*+
+  Leading((t3 t4))
+  Leading((t1 (t2 t5)))
+*/
+EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t4, t3 LIMIT 1) p, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
+LOG:  statement: /*+
   Leading((t3 t4))
   Leading((t1 (t2 t5)))
 */
@@ -908,6 +1057,10 @@ EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t4, t3 LIMIT 1) p, (SELECT * FR
     Leading(t1 t2 t3)
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
+    Leading(t1 t2 t3)
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -924,6 +1077,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
 (11 rows)
 
 /*+
+    Leading(t3 t2 t1)
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
+LOG:  statement: /*+
     Leading(t3 t2 t1)
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
@@ -947,6 +1104,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2 LEFT JOIN t3 ON t2.a=t3.a;
+LOG:  statement: /*+
+    Leading(((t3 t2) t1))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2 LEFT JOIN t3 ON t2.a=t3.a;
                        QUERY PLAN                        
 ---------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -966,6 +1127,10 @@ EXPLAIN (costs off) SELECT * FROM t1, t2 LEFT JOIN t3 ON t2.a=t3.a;
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2 RIGHT JOIN t3 ON t2.a=t3.a;
+LOG:  statement: /*+
+    Leading(((t3 t2) t1))
+ */
+EXPLAIN (costs off) SELECT * FROM t1, t2 RIGHT JOIN t3 ON t2.a=t3.a;
                        QUERY PLAN                        
 ---------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -981,3 +1146,5 @@ EXPLAIN (costs off) SELECT * FROM t1, t2 RIGHT JOIN t3 ON t2.a=t3.a;
  Optimizer: Postgres-based planner
 (11 rows)
 
+RESET client_min_messages;
+LOG:  statement: RESET client_min_messages;

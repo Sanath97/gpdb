@@ -17,6 +17,14 @@ CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int);
 
+SET client_min_messages TO log;
+
+-- Replace timestamp while logging with static string
+-- start_matchsubs
+-- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/
+-- s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/YYYY-MM-DD HH:MM:SS:MSMSMS/
+-- end_matchsubs
+
 -- Test that join order hint for every tree shape is applied.
 --
 -- These check that every possible order on 3 relations. There are 12 possible
@@ -274,3 +282,5 @@ EXPLAIN (costs off) SELECT * FROM t1, t2 LEFT JOIN t3 ON t2.a=t3.a;
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2 RIGHT JOIN t3 ON t2.a=t3.a;
+
+RESET client_min_messages;

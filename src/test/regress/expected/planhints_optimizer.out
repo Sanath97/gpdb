@@ -51,13 +51,32 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
 -- 1. [JOIN] Specific explicit scan type and implicit/explicit index
 --
 --------------------------------------------------------------------
+SET client_min_messages TO log;
+-- Replace timestamp while logging with static string
+-- start_matchsubs
+-- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/
+-- s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/YYYY-MM-DD HH:MM:SS:MSMSMS/
+-- end_matchsubs
 /*+
     SeqScan(t1)
     SeqScan(t2)
     SeqScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                              QUERY PLAN                              
+LOG:  statement: /*+
+    SeqScan(t1)
+    SeqScan(t2)
+    SeqScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:319857 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+ScanHint: t2[indexes: types:SeqScan]
+ScanHint: t3[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
 ----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
@@ -82,8 +101,19 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     IndexScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1 my_incredible_index)
+    IndexScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:363407 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -107,8 +137,19 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     IndexScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1)
+    IndexScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:419154 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexScan]
+ScanHint: t3[indexes: types:IndexScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -131,8 +172,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     IndexOnlyScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1 my_incredible_index)
+    IndexOnlyScan(t2 your_amazing_index)
+    IndexOnlyScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:451868 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexOnlyScan]
+ScanHint: t2[indexes:your_amazing_index types:IndexOnlyScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -155,8 +209,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     IndexOnlyScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1)
+    IndexOnlyScan(t2)
+    IndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:503580 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexOnlyScan]
+ScanHint: t2[indexes: types:IndexOnlyScan]
+ScanHint: t3[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -179,8 +246,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     BitmapScan(t3 our_bitmap_index)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1 my_bitmap_index)
+    BitmapScan(t2 your_bitmap_index)
+    BitmapScan(t3 our_bitmap_index)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:527756 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_bitmap_index types:BitmapScan]
+ScanHint: t2[indexes:your_bitmap_index types:BitmapScan]
+ScanHint: t3[indexes:our_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -210,8 +290,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     BitmapScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1)
+    BitmapScan(t2)
+    BitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:551815 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:BitmapScan]
+ScanHint: t2[indexes: types:BitmapScan]
+ScanHint: t3[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -244,7 +337,16 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     SeqScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                QUERY PLAN                
+LOG:  statement: /*+
+    SeqScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:555509 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -256,7 +358,16 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     SeqScan(t2)
  */
 EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
-                QUERY PLAN                
+LOG:  statement: /*+
+    SeqScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  2024-04-25 10:21:22:557935 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on your_table t2
@@ -268,7 +379,16 @@ EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
     SeqScan(t3)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                     QUERY PLAN                     
+LOG:  statement: /*+
+    SeqScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:560779 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                     QUERY PLAN
 ----------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Seq Scan on our_table t3
@@ -281,8 +401,17 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     IndexScan(t1 my_incredible_index)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                       QUERY PLAN                       
---------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1 my_incredible_index)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:563058 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexScan]
+Un-Used Hints:
+]",
+                        QUERY PLAN
+-----------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Scan using my_incredible_index on my_table t1
          Index Cond: (a < 42)
@@ -293,8 +422,17 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     IndexScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                     QUERY PLAN                      
------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:565422 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexScan]
+Un-Used Hints:
+]",
+                       QUERY PLAN
+--------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Scan using my_awesome_index on my_table t1
          Index Cond: (a < 42)
@@ -317,8 +455,17 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     IndexScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                         QUERY PLAN                         
-------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:568410 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes:our_amazing_index types:IndexScan]
+Un-Used Hints:
+]",
+                          QUERY PLAN
+---------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Scan on our_amazing_index on our_table t3
          Index Cond: (a < 42)
@@ -330,8 +477,17 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     IndexScan(t3)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                         QUERY PLAN                         
-------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:571653 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:IndexScan]
+Un-Used Hints:
+]",
+                          QUERY PLAN
+---------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Scan on our_awesome_index on our_table t3
          Index Cond: (a < 42)
@@ -343,8 +499,17 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     IndexOnlyScan(t1 my_incredible_index)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                         QUERY PLAN                          
--------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1 my_incredible_index)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:574152 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                           QUERY PLAN
+----------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using my_incredible_index on my_table t1
          Index Cond: (a < 42)
@@ -355,8 +520,17 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     IndexOnlyScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                        QUERY PLAN                        
-----------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:576469 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                         QUERY PLAN
+-------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using my_awesome_index on my_table t1
          Index Cond: (a < 42)
@@ -367,8 +541,17 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     IndexOnlyScan(t2 your_amazing_index)
  */
 EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
-                          QUERY PLAN                          
---------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t2 your_amazing_index)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  2024-04-25 10:21:22:578904 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes:your_amazing_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                           QUERY PLAN
+-----------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using your_amazing_index on your_table t2
          Index Cond: (a < 42)
@@ -379,8 +562,17 @@ EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
     IndexOnlyScan(t2)
  */
 EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
-                          QUERY PLAN                          
---------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  2024-04-25 10:21:22:581552 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                           QUERY PLAN
+-----------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using your_awesome_index on your_table t2
          Index Cond: (a < 42)
@@ -391,8 +583,17 @@ EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
     IndexOnlyScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                           QUERY PLAN                            
------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:584471 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes:our_amazing_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                             QUERY PLAN
+--------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Only Scan on our_amazing_index on our_table t3
          Index Cond: (a < 42)
@@ -404,8 +605,17 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     IndexOnlyScan(t3)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                           QUERY PLAN                            
------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:587682 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                             QUERY PLAN
+--------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Only Scan on our_awesome_index on our_table t3
          Index Cond: (a < 42)
@@ -417,7 +627,16 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     BitmapScan(t1 my_bitmap_index)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                    QUERY PLAN                    
+LOG:  statement: /*+
+    BitmapScan(t1 my_bitmap_index)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:590076 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                    QUERY PLAN
 --------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on my_table t1
@@ -431,7 +650,16 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     BitmapScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
-                    QUERY PLAN                    
+LOG:  statement: /*+
+    BitmapScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:592539 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                    QUERY PLAN
 --------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on my_table t1
@@ -445,7 +673,16 @@ EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
     BitmapScan(t2 your_bitmap_index)
  */
 EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
-                     QUERY PLAN                     
+LOG:  statement: /*+
+    BitmapScan(t2 your_bitmap_index)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  2024-04-25 10:21:22:595163 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes:your_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                     QUERY PLAN
 ----------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on your_table t2
@@ -459,7 +696,16 @@ EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
     BitmapScan(t2)
  */
 EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
-                     QUERY PLAN                     
+LOG:  statement: /*+
+    BitmapScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  2024-04-25 10:21:22:597754 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                     QUERY PLAN
 ----------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on your_table t2
@@ -473,7 +719,16 @@ EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
     BitmapScan(t3 our_bitmap_index)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                        QUERY PLAN                         
+LOG:  statement: /*+
+    BitmapScan(t3 our_bitmap_index)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:600751 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes:our_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                        QUERY PLAN
 -----------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Bitmap Heap Scan on our_table t3
@@ -489,7 +744,16 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     BitmapScan(t3)
  */
 EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
-                        QUERY PLAN                         
+LOG:  statement: /*+
+    BitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  2024-04-25 10:21:22:603733 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                        QUERY PLAN
 -----------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Bitmap Heap Scan on our_table t3
@@ -512,8 +776,21 @@ EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
     NoSeqScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    NoSeqScan(t1)
+    NoSeqScan(t2)
+    NoSeqScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:683025 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoSeqScan]
+ScanHint: t2[indexes: types:NoSeqScan]
+ScanHint: t3[indexes: types:NoSeqScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -536,8 +813,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     NoIndexScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    NoIndexScan(t1)
+    NoIndexScan(t2)
+    NoIndexScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:741728 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoIndexScan]
+ScanHint: t2[indexes: types:NoIndexScan]
+ScanHint: t3[indexes: types:NoIndexScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -560,8 +850,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     NoIndexOnlyScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    NoIndexOnlyScan(t1)
+    NoIndexOnlyScan(t2)
+    NoIndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:783853 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoIndexOnlyScan]
+ScanHint: t2[indexes: types:NoIndexOnlyScan]
+ScanHint: t3[indexes: types:NoIndexOnlyScan]
+Un-Used Hints:
+]",
+                                QUERY PLAN
+---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -586,8 +889,21 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     NoBitmapScan(t3)
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    NoBitmapScan(t1)
+    NoBitmapScan(t2)
+    NoBitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  2024-04-25 10:21:22:858229 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoBitmapScan]
+ScanHint: t2[indexes: types:NoBitmapScan]
+ScanHint: t3[indexes: types:NoBitmapScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -621,6 +937,12 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
     NoBitmapScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    NoIndexScan(t1)
+    NoIndexOnlyScan(t1)
+    NoBitmapScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t1)
     NoIndexOnlyScan(t1)
     NoBitmapScan(t1)
@@ -639,7 +961,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t1)
     NoBitmapScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                QUERY PLAN                
+LOG:  2024-04-25 10:21:22:863334 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoIndexScan,NoIndexOnlyScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -648,6 +975,12 @@ DETAIL:  Conflict scan method hint.
 (4 rows)
 
 /*+
+    NoIndexScan(t2)
+    NoIndexOnlyScan(t2)
+    NoBitmapScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  statement: /*+
     NoIndexScan(t2)
     NoIndexOnlyScan(t2)
     NoBitmapScan(t2)
@@ -671,7 +1004,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t2)
     NoBitmapScan(t2)
  "
 DETAIL:  Conflict scan method hint.
-                QUERY PLAN                
+LOG:  2024-04-25 10:21:22:865908 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:NoIndexScan,NoIndexOnlyScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on your_table t2
@@ -680,6 +1018,12 @@ DETAIL:  Conflict scan method hint.
 (4 rows)
 
 /*+
+    NoIndexScan(t3)
+    NoIndexOnlyScan(t3)
+    NoBitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  statement: /*+
     NoIndexScan(t3)
     NoIndexOnlyScan(t3)
     NoBitmapScan(t3)
@@ -703,7 +1047,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t3)
     NoBitmapScan(t3)
  "
 DETAIL:  Conflict scan method hint.
-                     QUERY PLAN                     
+LOG:  2024-04-25 10:21:22:868857 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:NoIndexScan,NoIndexOnlyScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                     QUERY PLAN
 ----------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Seq Scan on our_table t3
@@ -721,6 +1070,12 @@ DETAIL:  Conflict scan method hint.
     NoBitmapScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    NoSeqScan(t1)
+    NoIndexOnlyScan(t1)
+    NoBitmapScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "NoSeqScan(t1)
     NoIndexOnlyScan(t1)
     NoBitmapScan(t1)
@@ -739,8 +1094,13 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t1)
     NoBitmapScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                     QUERY PLAN                      
------------------------------------------------------
+LOG:  2024-04-25 10:21:22:871286 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoSeqScan,NoIndexOnlyScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                       QUERY PLAN
+--------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Scan using my_awesome_index on my_table t1
          Index Cond: (a < 42)
@@ -748,6 +1108,12 @@ DETAIL:  Conflict scan method hint.
 (4 rows)
 
 /*+
+    NoSeqScan(t2)
+    NoIndexOnlyScan(t2)
+    NoBitmapScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  statement: /*+
     NoSeqScan(t2)
     NoIndexOnlyScan(t2)
     NoBitmapScan(t2)
@@ -771,9 +1137,11 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t2)
     NoBitmapScan(t2)
  "
 DETAIL:  Conflict scan method hint.
+LOG:  2024-04-25 10:21:22:874370 CDT,THD000,ERROR,"Falling back to Postgres-based planner because no plan has been computed for required properties in GPORCA",
+2024-04-25 10:21:22:874984 CDT,THD000,ERROR,"Falling back to Postgres-based planner because no plan has been computed for required properties in GPORCA",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Falling back to Postgres-based planner because no plan has been computed for required properties in GPORCA
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on your_table t2
@@ -782,6 +1150,12 @@ DETAIL:  Falling back to Postgres-based planner because no plan has been compute
 (4 rows)
 
 /*+
+    NoSeqScan(t3)
+    NoIndexOnlyScan(t3)
+    NoBitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  statement: /*+
     NoSeqScan(t3)
     NoIndexOnlyScan(t3)
     NoBitmapScan(t3)
@@ -805,8 +1179,13 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexOnlyScan(t3)
     NoBitmapScan(t3)
  "
 DETAIL:  Conflict scan method hint.
-                         QUERY PLAN                         
-------------------------------------------------------------
+LOG:  2024-04-25 10:21:22:889687 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:NoSeqScan,NoIndexOnlyScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                          QUERY PLAN
+---------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Scan on our_awesome_index on our_table t3
          Index Cond: (a < 42)
@@ -823,6 +1202,12 @@ DETAIL:  Conflict scan method hint.
     NoBitmapScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    NoSeqScan(t1)
+    NoIndexScan(t1)
+    NoBitmapScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "NoSeqScan(t1)
     NoIndexScan(t1)
     NoBitmapScan(t1)
@@ -841,8 +1226,13 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t1)
     NoBitmapScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                        QUERY PLAN                        
-----------------------------------------------------------
+LOG:  2024-04-25 10:21:22:893211 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoSeqScan,NoIndexScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                         QUERY PLAN
+-------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using my_awesome_index on my_table t1
          Index Cond: (a < 42)
@@ -850,6 +1240,12 @@ DETAIL:  Conflict scan method hint.
 (4 rows)
 
 /*+
+    NoSeqScan(t2)
+    NoIndexScan(t2)
+    NoBitmapScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  statement: /*+
     NoSeqScan(t2)
     NoIndexScan(t2)
     NoBitmapScan(t2)
@@ -873,8 +1269,13 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t2)
     NoBitmapScan(t2)
  "
 DETAIL:  Conflict scan method hint.
-                          QUERY PLAN                          
---------------------------------------------------------------
+LOG:  2024-04-25 10:21:22:897308 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:NoSeqScan,NoIndexScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                           QUERY PLAN
+-----------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Only Scan using your_awesome_index on your_table t2
          Index Cond: (a < 42)
@@ -882,6 +1283,12 @@ DETAIL:  Conflict scan method hint.
 (4 rows)
 
 /*+
+    NoSeqScan(t3)
+    NoIndexScan(t3)
+    NoBitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  statement: /*+
     NoSeqScan(t3)
     NoIndexScan(t3)
     NoBitmapScan(t3)
@@ -905,8 +1312,13 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t3)
     NoBitmapScan(t3)
  "
 DETAIL:  Conflict scan method hint.
-                           QUERY PLAN                            
------------------------------------------------------------------
+LOG:  2024-04-25 10:21:22:901223 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:NoSeqScan,NoIndexScan,NoBitmapScan]
+Un-Used Hints:
+]",
+                             QUERY PLAN
+--------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Index Only Scan on our_awesome_index on our_table t3
          Index Cond: (a < 42)
@@ -918,6 +1330,12 @@ DETAIL:  Conflict scan method hint.
 -- Make BitmapScan is only valid plan
 --
 /*+
+    NoSeqScan(t1)
+    NoIndexScan(t1)
+    NoIndexOnlyScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
     NoSeqScan(t1)
     NoIndexScan(t1)
     NoIndexOnlyScan(t1)
@@ -941,7 +1359,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t1)
     NoIndexOnlyScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                    QUERY PLAN                    
+LOG:  2024-04-25 10:21:22:905043 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:NoSeqScan,NoIndexScan,NoIndexOnlyScan]
+Un-Used Hints:
+]",
+                    QUERY PLAN
 --------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on my_table t1
@@ -952,6 +1375,12 @@ DETAIL:  Conflict scan method hint.
 (6 rows)
 
 /*+
+    NoSeqScan(t2)
+    NoIndexScan(t2)
+    NoIndexOnlyScan(t2)
+ */
+EXPLAIN (costs off) SELECT t2.a FROM your_table AS t2 WHERE t2.a<42;
+LOG:  statement: /*+
     NoSeqScan(t2)
     NoIndexScan(t2)
     NoIndexOnlyScan(t2)
@@ -975,7 +1404,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t2)
     NoIndexOnlyScan(t2)
  "
 DETAIL:  Conflict scan method hint.
-                     QUERY PLAN                     
+LOG:  2024-04-25 10:21:22:908712 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t2[indexes: types:NoSeqScan,NoIndexScan,NoIndexOnlyScan]
+Un-Used Hints:
+]",
+                     QUERY PLAN
 ----------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Bitmap Heap Scan on your_table t2
@@ -986,6 +1420,12 @@ DETAIL:  Conflict scan method hint.
 (6 rows)
 
 /*+
+    NoSeqScan(t3)
+    NoIndexScan(t3)
+    NoIndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) SELECT t3.a FROM our_table AS t3 WHERE t3.a<42;
+LOG:  statement: /*+
     NoSeqScan(t3)
     NoIndexScan(t3)
     NoIndexOnlyScan(t3)
@@ -1009,7 +1449,12 @@ INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t3)
     NoIndexOnlyScan(t3)
  "
 DETAIL:  Conflict scan method hint.
-                        QUERY PLAN                         
+LOG:  2024-04-25 10:21:22:913264 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t3[indexes: types:NoSeqScan,NoIndexScan,NoIndexOnlyScan]
+Un-Used Hints:
+]",
+                        QUERY PLAN
 -----------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Dynamic Bitmap Heap Scan on our_table t3
@@ -1027,13 +1472,27 @@ DETAIL:  Conflict scan method hint.
 --
 --------------------------------------------------------------------
 CREATE VIEW everybody_view AS SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
+LOG:  statement: CREATE VIEW everybody_view AS SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a WHERE t1.a<42;
 /*+
     SeqScan(t1)
     SeqScan(t2)
     SeqScan(t3)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                              QUERY PLAN                              
+LOG:  statement: /*+
+    SeqScan(t1)
+    SeqScan(t2)
+    SeqScan(t3)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:22:960275 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+ScanHint: t2[indexes: types:SeqScan]
+ScanHint: t3[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
 ----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
@@ -1059,8 +1518,19 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     IndexScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1 my_incredible_index)
+    IndexScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:002565 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -1084,8 +1554,19 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     IndexScan(t3)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1)
+    IndexScan(t3)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:057460 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexScan]
+ScanHint: t3[indexes: types:IndexScan]
+Un-Used Hints:
+]",
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -1108,8 +1589,21 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     IndexOnlyScan(t3 our_amazing_index)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1 my_incredible_index)
+    IndexOnlyScan(t2 your_amazing_index)
+    IndexOnlyScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:088492 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexOnlyScan]
+ScanHint: t2[indexes:your_amazing_index types:IndexOnlyScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -1132,8 +1626,21 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     IndexOnlyScan(t3)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1)
+    IndexOnlyScan(t2)
+    IndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:138396 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexOnlyScan]
+ScanHint: t2[indexes: types:IndexOnlyScan]
+ScanHint: t3[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t2.a = t3.a)
@@ -1156,8 +1663,21 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     BitmapScan(t3 our_bitmap_index)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1 my_bitmap_index)
+    BitmapScan(t2 your_bitmap_index)
+    BitmapScan(t3 our_bitmap_index)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:162270 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_bitmap_index types:BitmapScan]
+ScanHint: t2[indexes:your_bitmap_index types:BitmapScan]
+ScanHint: t3[indexes:our_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -1187,8 +1707,21 @@ EXPLAIN (costs off) SELECT * FROM everybody_view;
     BitmapScan(t3)
  */
 EXPLAIN (costs off) SELECT * FROM everybody_view;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1)
+    BitmapScan(t2)
+    BitmapScan(t3)
+ */
+EXPLAIN (costs off) SELECT * FROM everybody_view;
+LOG:  2024-04-25 10:21:23:185880 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:BitmapScan]
+ScanHint: t2[indexes: types:BitmapScan]
+ScanHint: t3[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -1227,7 +1760,24 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                              QUERY PLAN                              
+LOG:  statement: /*+
+    SeqScan(t1)
+    SeqScan(t2)
+    SeqScan(t3)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:224386 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+ScanHint: t2[indexes: types:SeqScan]
+ScanHint: t3[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
 ----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
@@ -1257,8 +1807,23 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1 my_incredible_index)
+    IndexScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:292583 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexScan]
+Un-Used Hints:
+]",
+                                QUERY PLAN
+---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
          Join Filter: true
@@ -1285,8 +1850,23 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexScan(t1)
+    IndexScan(t3)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:385050 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexScan]
+ScanHint: t3[indexes: types:IndexScan]
+Un-Used Hints:
+]",
+                                QUERY PLAN
+---------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
          Join Filter: true
@@ -1312,8 +1892,25 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1 my_incredible_index)
+    IndexOnlyScan(t2 your_amazing_index)
+    IndexOnlyScan(t3 our_amazing_index)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:433348 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_incredible_index types:IndexOnlyScan]
+ScanHint: t2[indexes:your_amazing_index types:IndexOnlyScan]
+ScanHint: t3[indexes:our_amazing_index types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
          Join Filter: true
@@ -1339,8 +1936,25 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+LOG:  statement: /*+
+    IndexOnlyScan(t1)
+    IndexOnlyScan(t2)
+    IndexOnlyScan(t3)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:513970 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:IndexOnlyScan]
+ScanHint: t2[indexes: types:IndexOnlyScan]
+ScanHint: t3[indexes: types:IndexOnlyScan]
+Un-Used Hints:
+]",
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
          Join Filter: true
@@ -1366,8 +1980,25 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1 my_bitmap_index)
+    BitmapScan(t2 your_bitmap_index)
+    BitmapScan(t3 our_bitmap_index)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:555240 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes:my_bitmap_index types:BitmapScan]
+ScanHint: t2[indexes:your_bitmap_index types:BitmapScan]
+ScanHint: t3[indexes:our_bitmap_index types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -1401,8 +2032,25 @@ EXPLAIN (costs off) WITH cte AS
     SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
 )
 SELECT a1, a2, a3 FROM cte WHERE a1<42;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+LOG:  statement: /*+
+    BitmapScan(t1)
+    BitmapScan(t2)
+    BitmapScan(t3)
+ */
+EXPLAIN (costs off) WITH cte AS
+(
+    SELECT t1.a AS a1, t2.a AS a2, t3.a AS a3 FROM my_table AS t1 JOIN your_table AS t2 ON t1.a=t2.a JOIN our_table AS t3 ON t3.a=t2.a
+)
+SELECT a1, a2, a3 FROM cte WHERE a1<42;
+LOG:  2024-04-25 10:21:23:596800 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:BitmapScan]
+ScanHint: t2[indexes: types:BitmapScan]
+ScanHint: t3[indexes: types:BitmapScan]
+Un-Used Hints:
+]",
+                              QUERY PLAN
+-----------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Join
          Hash Cond: (t1.a = t2.a)
@@ -1435,11 +2083,16 @@ SELECT a1, a2, a3 FROM cte WHERE a1<42;
     TidScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.ctid FROM my_table AS t1 WHERE ctid = '(0,1)';
+LOG:  statement: /*+
+    TidScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.ctid FROM my_table AS t1 WHERE ctid = '(0,1)';
+LOG:  2024-04-25 10:21:23:601113 CDT,THD000,NOTICE,"Operator Unsupported plan hint: TidScan not supported",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Operator Unsupported plan hint: TidScan not supported
 NOTICE:  SELECT uses system-defined column "t1.ctid" without the necessary companion column "t1.gp_segment_id"
 HINT:  To uniquely identify a row within a distributed table, use the "gp_segment_id" column together with the "ctid" column.
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Tid Scan on my_table t1
@@ -1451,11 +2104,16 @@ HINT:  To uniquely identify a row within a distributed table, use the "gp_segmen
     NoTidScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.ctid FROM my_table AS t1 WHERE  ctid >= '(0,1)';
+LOG:  statement: /*+
+    NoTidScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.ctid FROM my_table AS t1 WHERE  ctid >= '(0,1)';
+LOG:  2024-04-25 10:21:23:603660 CDT,THD000,NOTICE,"Operator Unsupported plan hint: NoTidScan not supported",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Operator Unsupported plan hint: NoTidScan not supported
 NOTICE:  SELECT uses system-defined column "t1.ctid" without the necessary companion column "t1.gp_segment_id"
 HINT:  To uniquely identify a row within a distributed table, use the "gp_segment_id" column together with the "ctid" column.
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1467,9 +2125,14 @@ HINT:  To uniquely identify a row within a distributed table, use the "gp_segmen
     IndexScanRegexp(t1 '*awesome*')
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    IndexScanRegexp(t1 '*awesome*')
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:23:605190 CDT,THD000,NOTICE,"Operator Unsupported plan hint: IndexScanRegexp not supported",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Operator Unsupported plan hint: IndexScanRegexp not supported
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1481,9 +2144,14 @@ DETAIL:  Operator Unsupported plan hint: IndexScanRegexp not supported
     IndexOnlyScanRegexp(t1 '*awesome*')
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    IndexOnlyScanRegexp(t1 '*awesome*')
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:23:606821 CDT,THD000,NOTICE,"Operator Unsupported plan hint: IndexOnlyScanRegexp not supported",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Operator Unsupported plan hint: IndexOnlyScanRegexp not supported
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1495,9 +2163,14 @@ DETAIL:  Operator Unsupported plan hint: IndexOnlyScanRegexp not supported
     BitmapScanRegexp(t1 '*awesome*')
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    BitmapScanRegexp(t1 '*awesome*')
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:23:608419 CDT,THD000,NOTICE,"Operator Unsupported plan hint: BitmapScanRegexp not supported",
 INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
 DETAIL:  Operator Unsupported plan hint: BitmapScanRegexp not supported
-                QUERY PLAN                
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1515,14 +2188,22 @@ DETAIL:  Operator Unsupported plan hint: BitmapScanRegexp not supported
     SeqScan()
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    SeqScan()
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "
  "
 DETAIL:  SeqScan hint requires a relation.
 INFO:  pg_hint_plan: hint syntax error at or near "
  "
 DETAIL:  SeqScan hint requires a relation.
-                     QUERY PLAN                      
------------------------------------------------------
+LOG:  2024-04-25 10:21:23:612257 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+Un-Used Hints:
+]",
+                       QUERY PLAN
+--------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Index Scan using my_awesome_index on my_table t1
          Index Cond: (a < 42)
@@ -1534,13 +2215,22 @@ DETAIL:  SeqScan hint requires a relation.
     SeqScan(t1) NoIndexScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    SeqScan(t1) NoIndexScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "SeqScan(t1) NoIndexScan(t1)
  "
 DETAIL:  Conflict scan method hint.
 INFO:  pg_hint_plan: hint syntax error at or near "SeqScan(t1) NoIndexScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                QUERY PLAN                
+LOG:  2024-04-25 10:21:23:615669 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan,NoIndexScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1552,13 +2242,22 @@ DETAIL:  Conflict scan method hint.
     NoIndexScan(t1) SeqScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    NoIndexScan(t1) SeqScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t1) SeqScan(t1)
  "
 DETAIL:  Conflict scan method hint.
 INFO:  pg_hint_plan: hint syntax error at or near "NoIndexScan(t1) SeqScan(t1)
  "
 DETAIL:  Conflict scan method hint.
-                QUERY PLAN                
+LOG:  2024-04-25 10:21:23:618070 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan,NoIndexScan]
+Un-Used Hints:
+]",
+                QUERY PLAN
 ------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on my_table t1
@@ -1571,8 +2270,18 @@ DETAIL:  Conflict scan method hint.
     SeqScan(t2) SeqScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE EXISTS (SELECT 1 FROM your_table AS t2 WHERE t1.a = t2.a);
-                   QUERY PLAN
-------------------------------------------------
+LOG:  statement: /*+
+    SeqScan(t2) SeqScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE EXISTS (SELECT 1 FROM your_table AS t2 WHERE t1.a = t2.a);
+LOG:  2024-04-25 10:21:23:632512 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+ScanHint: t2[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                 QUERY PLAN
+---------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Semi Join
          Hash Cond: (t1.a = t2.a)
@@ -1587,8 +2296,18 @@ EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE EXISTS (SELECT 1
     SeqScan(t2) SeqScan(t1)
  */
 EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE NOT EXISTS (SELECT 1 FROM your_table AS t2 WHERE t1.a = t2.a);
-                   QUERY PLAN
-------------------------------------------------
+LOG:  statement: /*+
+    SeqScan(t2) SeqScan(t1)
+ */
+EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE NOT EXISTS (SELECT 1 FROM your_table AS t2 WHERE t1.a = t2.a);
+LOG:  2024-04-25 10:21:23:643582 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+ScanHint: t1[indexes: types:SeqScan]
+ScanHint: t2[indexes: types:SeqScan]
+Un-Used Hints:
+]",
+                 QUERY PLAN
+---------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Hash Anti Join
          Hash Cond: (t1.a = t2.a)
@@ -1598,3 +2317,28 @@ EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE NOT EXISTS (SELE
  Optimizer: GPORCA
 (7 rows)
 
+-- Missing alias in query to test Un-used Hint logging
+/*+
+    NoIndexScan(z) SeqScan(y)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+    NoIndexScan(z) SeqScan(y)
+ */
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  2024-04-25 10:21:23:648353 CDT,THD000,TRACE,"PlanHint: [
+Used Hints:
+Un-Used Hints:
+ScanHint: y[indexes: types:SeqScan]
+ScanHint: z[indexes: types:NoIndexScan]
+]",
+                       QUERY PLAN
+--------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Index Scan using my_awesome_index on my_table t1
+         Index Cond: (a < 42)
+ Optimizer: GPORCA
+(4 rows)
+
+RESET client_min_messages;
+LOG:  statement: RESET client_min_messages;
