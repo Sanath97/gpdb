@@ -320,7 +320,7 @@ COptimizer::PdxlnOptimize(
 
 			CPlanHint *plan_hint =
 				COptCtxt::PoctxtFromTLS()->GetOptimizerConfig()->GetPlanHint();
-			if (plan_hint != nullptr)
+			if (plan_hint != nullptr && GPOS_FTRACE(EopttracePlanHintDebugPrint))
 			{
 				CWStringDynamic strPlanhint(mp);
 				COstreamString ossPlanhint(&strPlanhint);

@@ -15,7 +15,7 @@
 
 extern "C" {
 #include "postgres.h"
-
+#include "optimizer/orca.h"
 #include "utils/guc.h"
 }
 
@@ -539,6 +539,11 @@ CConfigParamMapping::PackConfigParamInBitset(
 		traceflag_bitset->ExchangeSet(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfRightOuterJoin2HashJoin));
 	}
+
+        if(debug_level)
+        {
+            traceflag_bitset->ExchangeSet(EopttracePlanHintDebugPrint);
+        }
 
 	return traceflag_bitset;
 }

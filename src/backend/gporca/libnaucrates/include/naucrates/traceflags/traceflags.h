@@ -77,6 +77,9 @@ enum EOptTraceFlag
 	// print equivalent distribution specs
 	EopttracePrintEquivDistrSpecs = 101017,
 
+        // print plan hint logs
+        EopttracePlanHintDebugPrint = 101018,
+
 	///////////////////////////////////////////////////////
 	////////////////// transformations flags //////////////
 	///////////////////////////////////////////////////////

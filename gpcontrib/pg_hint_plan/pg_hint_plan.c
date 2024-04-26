@@ -521,7 +521,7 @@ static int set_config_double_option(const char *name, double value,
 
 /* GUC variables */
 static bool	pg_hint_plan_enable_hint = true;
-static int debug_level = 0;
+int debug_level = 0;
 static int	pg_hint_plan_parse_message_level = INFO;
 static int	pg_hint_plan_debug_message_level = LOG;
 /* Default is off, to keep backward compatibility. */
