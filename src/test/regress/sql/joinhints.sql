@@ -18,11 +18,11 @@ CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int);
 
 SET client_min_messages TO log;
-
+SET optimizer_pg_hint_plan_debug_print TO ON;
 -- Replace timestamp while logging with static string
 -- start_matchsubs
--- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/
--- s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6}/YYYY-MM-DD HH:MM:SS:MSMSMS/
+-- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6} [A-Z]{3}/
+-- s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6} [A-Z]{3}/YYYY-MM-DD HH:MM:SS:MSMSMS TMZ/
 -- end_matchsubs
 
 -- Test that join order hint for every tree shape is applied.
@@ -451,3 +451,4 @@ EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2);
 EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a NOT IN (SELECT t2.a FROM t2);
 
 RESET client_min_messages;
+RESET optimizer_pg_hint_plan_debug_print;
