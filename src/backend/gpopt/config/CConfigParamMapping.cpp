@@ -304,6 +304,9 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	{EopttraceDisableInnerNLJ, &optimizer_enable_nljoin,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Enable nested loop join alternatives")},
+	{EopttracePrintPgHintPlanLog, &optimizer_pg_hint_plan_debug_print,
+	 false,	 // m_negate_param
+	 GPOS_WSZ_LIT("Logs results of hint parsing.")},
 
 };
 
