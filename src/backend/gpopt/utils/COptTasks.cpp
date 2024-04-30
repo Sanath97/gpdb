@@ -570,15 +570,21 @@ GenerateJoinNodes(CMemoryPool *mp, List *relations)
 //			Generate an instance of plan hints by parsing the query tree.
 //
 //---------------------------------------------------------------------------
+int debug_level_copy = 0;
 CPlanHint *
 COptTasks::GetPlanHints(CMemoryPool *mp, Query *query)
 {
 	HintState *hintstate = nullptr;
+    debug_level_copy = 0;
 	if (plan_hint_hook != nullptr)
 	{
 		// Calling plan_hint_hook creates pg_hint_plan hint structures
 		// (see optimizer/hints.h).
 		hintstate = (HintState *) plan_hint_hook(query);
+                if (debug_level_copy > 0)
+                {
+                    GPOS_SET_TRACE(EopttracePrintPgHintPlanLog);
+                }
 	}
 
 	if (nullptr == hintstate)

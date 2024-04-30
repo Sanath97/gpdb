@@ -43,7 +43,7 @@ EXPLAIN (costs off) SELECT t1.a, t2.a, t3.a FROM my_table AS t1 JOIN your_table 
 --------------------------------------------------------------------
 
 SET client_min_messages TO log;
-SET optimizer_pg_hint_plan_debug_print TO ON;
+SET pg_hint_plan.debug_print TO ON;
 
 -- Replace timestamp while logging with static string
 -- start_matchsubs
@@ -571,4 +571,4 @@ EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE NOT EXISTS (SELE
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
 RESET client_min_messages;
-RESET optimizer_pg_hint_plan_debug_print;
+RESET pg_hint_plan.debug_print;

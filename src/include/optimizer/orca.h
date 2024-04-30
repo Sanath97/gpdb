@@ -27,6 +27,7 @@ extern Node *transformGroupedWindows(Node *node, void *context);
 // plan_hint_hook generates HintState by parsing a Query.
 typedef void *(*plan_hint_hook_type) (Query *parse);
 extern PGDLLIMPORT plan_hint_hook_type plan_hint_hook;
+extern PGDLLIMPORT int debug_level_copy;
 
 #endif
 

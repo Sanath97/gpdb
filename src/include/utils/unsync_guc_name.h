@@ -422,7 +422,6 @@
 		"optimizer_partition_selection_log",
 		"optimizer_penalize_broadcast_threshold",
 		"optimizer_penalize_skew",
-		"optimizer_pg_hint_plan_debug_print",
 		"optimizer_plan_id",
 		"optimizer_print_expression_properties",
 		"optimizer_print_group_properties",

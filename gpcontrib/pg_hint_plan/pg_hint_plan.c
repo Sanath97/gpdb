@@ -5047,7 +5047,7 @@ static void *
 external_plan_hint_hook(Query *parse)
 {
 	HintState *hstate;
-
+debug_level_copy = debug_level;
 	if (parse == NULL)
 		return NULL;
 
@@ -5058,6 +5058,7 @@ external_plan_hint_hook(Query *parse)
 		return NULL;
 
 	hstate = create_hintstate(parse, pstrdup(current_hint_str));
+        planner_hook = NULL;
 	return hstate;
 }
 #endif

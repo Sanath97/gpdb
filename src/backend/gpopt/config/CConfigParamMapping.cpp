@@ -15,7 +15,6 @@
 
 extern "C" {
 #include "postgres.h"
-
 #include "utils/guc.h"
 }
 
@@ -25,6 +24,8 @@ extern "C" {
 using namespace gpos;
 using namespace gpdxl;
 using namespace gpopt;
+
+//int debug_level_copy = 0;
 
 // array mapping GUCs to traceflags
 CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
@@ -304,9 +305,9 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	{EopttraceDisableInnerNLJ, &optimizer_enable_nljoin,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Enable nested loop join alternatives")},
-	{EopttracePrintPgHintPlanLog, &optimizer_pg_hint_plan_debug_print,
-	 false,	 // m_negate_param
-	 GPOS_WSZ_LIT("Logs results of hint parsing.")},
+//	{EopttracePrintPgHintPlanLog, debug_level_ptr,
+//	 false,	 // m_negate_param
+//	 GPOS_WSZ_LIT("Logs results of hint parsing.")},
 
 };
 
@@ -542,6 +543,11 @@ CConfigParamMapping::PackConfigParamInBitset(
 		traceflag_bitset->ExchangeSet(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfRightOuterJoin2HashJoin));
 	}
+//
+//    if(debug_level_copy>0)
+//    {
+//        traceflag_bitset->ExchangeSet(EopttracePrintPgHintPlanLog);
+//    }
 
 	return traceflag_bitset;
 }

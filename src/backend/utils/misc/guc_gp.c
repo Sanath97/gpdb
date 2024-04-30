@@ -298,7 +298,6 @@ bool		optimizer_print_group_properties;
 bool		optimizer_print_optimization_context;
 bool		optimizer_print_optimization_stats;
 bool		optimizer_print_xform_results;
-bool		optimizer_pg_hint_plan_debug_print;
 
 /* array of xforms disable flags */
 bool		optimizer_xforms[OPTIMIZER_XFORMS_COUNT] = {[0 ... OPTIMIZER_XFORMS_COUNT - 1] = false};
@@ -1991,16 +1990,6 @@ struct config_bool ConfigureNamesBool_gp[] =
 		NULL, NULL, NULL
 	},
 
-	{
-		{"optimizer_pg_hint_plan_debug_print", PGC_USERSET, LOGGING_WHAT,
-				gettext_noop("Logs results of hint parsing."),
-				NULL,
-				GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
-		},
-		&optimizer_pg_hint_plan_debug_print,
-		false,
-		NULL, NULL, NULL
-	},
 
 	{
 		{"optimizer_print_memo_after_exploration", PGC_USERSET, LOGGING_WHAT,
