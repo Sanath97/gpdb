@@ -13,8 +13,8 @@ CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int);
 SET client_min_messages TO log;
-SET optimizer_pg_hint_plan_debug_print TO ON;
-LOG:  statement: SET optimizer_pg_hint_plan_debug_print TO ON;
+SET pg_hint_plan.debug_print TO ON;
+LOG:  statement: SET pg_hint_plan.debug_print TO ON;
 -- Replace timestamp while logging with static string
 -- start_matchsubs
 -- m/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{6} [A-Z]{3}/
@@ -39,7 +39,7 @@ LOG:  statement: /*+
     Leading((t1 (t2 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:027912 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:562633 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t1 (t2 t3))
 Un-Used Hints:
@@ -68,7 +68,7 @@ LOG:  statement: /*+
     Leading((t1 (t3 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:034809 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:569103 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t1 (t3 t2))
 Un-Used Hints:
@@ -97,7 +97,7 @@ LOG:  statement: /*+
     Leading(((t2 t3) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:038859 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:573925 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t2 t3) t1)
 Un-Used Hints:
@@ -126,7 +126,7 @@ LOG:  statement: /*+
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:042747 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:578503 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t3 t2) t1)
 Un-Used Hints:
@@ -155,7 +155,7 @@ LOG:  statement: /*+
     Leading(((t1 t3) t2))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:046465 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:582665 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t1 t3) t2)
 Un-Used Hints:
@@ -184,7 +184,7 @@ LOG:  statement: /*+
     Leading(((t3 t1) t2))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:050162 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:587113 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t3 t1) t2)
 Un-Used Hints:
@@ -213,7 +213,7 @@ LOG:  statement: /*+
     Leading((t2 (t1 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:054134 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:591667 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t2 (t1 t3))
 Un-Used Hints:
@@ -242,7 +242,7 @@ LOG:  statement: /*+
     Leading((t2 (t3 t1)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:058067 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:596315 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t2 (t3 t1))
 Un-Used Hints:
@@ -271,7 +271,7 @@ LOG:  statement: /*+
     Leading(((t1 t2) t3))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:061661 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:600797 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t1 t2) t3)
 Un-Used Hints:
@@ -300,7 +300,7 @@ LOG:  statement: /*+
     Leading(((t2 t1) t3))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:065231 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:604699 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t2 t1) t3)
 Un-Used Hints:
@@ -329,7 +329,7 @@ LOG:  statement: /*+
     Leading((t3 (t1 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:069219 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:609033 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t3 (t1 t2))
 Un-Used Hints:
@@ -358,7 +358,7 @@ LOG:  statement: /*+
     Leading((t3 (t2 t1)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:073061 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:615511 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t3 (t2 t1))
 Un-Used Hints:
@@ -391,7 +391,7 @@ LOG:  statement: /*+
     Leading((t2 (t1 t3)))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, (SELECT * FROM t3 LIMIT 42) AS q;
-LOG:  2024-04-25 11:00:56:078050 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:621632 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t2 (t1 t3))
 Un-Used Hints:
@@ -424,7 +424,7 @@ LOG:  statement: /*+
     Leading(((t5 (t4 t3)) (t1 t2)))
  */
 EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
-LOG:  2024-04-25 11:00:56:085394 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:630341 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t5 (t4 t3)) (t1 t2))
 Un-Used Hints:
@@ -465,7 +465,7 @@ LOG:  statement: /*+
   Leading((t1 (t2 t5)))
 */
 EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t1, t2, t5 LIMIT 42) q, t4, t3;
-LOG:  2024-04-25 11:00:56:097783 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:645375 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t1 (t2 t5))
 Un-Used Hints:
@@ -504,7 +504,7 @@ LOG:  statement: /*+
     Leading((((t1 t2) t3) t4))
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2, t3 GROUP BY t1.a, t2.a) AS q, t4;
-LOG:  2024-04-25 11:00:56:104118 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:655490 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(((t1 t2) t3) t4)
 Un-Used Hints:
@@ -543,7 +543,7 @@ LOG:  statement: /*+
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT g1_t1.a, g1_t2.a FROM t1 AS g1_t1, t2 AS g1_t2, t3 AS g1_t3 GROUP BY g1_t1.a, g1_t2.a) AS q1,
                                   (SELECT g2_t1.a, g2_t2.a FROM t1 AS g2_t1, t2 AS g2_t2, t3 AS g2_t3 GROUP BY g2_t1.a, g2_t2.a) AS q2, t4, t5;
-LOG:  2024-04-25 11:00:56:119314 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:675973 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((((g2_t1 g2_t2) g2_t3) t4) (g1_t1 (g1_t3 g1_t2)))
 Un-Used Hints:
@@ -615,7 +615,7 @@ WITH cte AS
     SELECT * FROM t1, t2, t3
 )
 SELECT * FROM cte, t4, t5;
-LOG:  2024-04-25 11:00:56:126943 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:685870 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t3 t2) t1)
 JoinHint:(t5 t4)
@@ -659,7 +659,7 @@ LOG:  statement: /*+
     Leading((t1 t3))
  */
 EXPLAIN (costs off) SELECT * FROM (SELECT t1.a FROM t1, t2 LIMIT 42) AS q, t3, t4, t5;
-LOG:  2024-04-25 11:00:56:145563 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:708144 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:(t1 t3)
@@ -701,7 +701,7 @@ LOG:  statement: /*+
     Leading((t2 t3))
  */
 EXPLAIN (COSTS OFF) SELECT * FROM (SELECT t1.a, t2.a FROM t1, t2 GROUP BY t1.a, t2.a) AS q, t3;
-LOG:  2024-04-25 11:00:56:153792 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:721274 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:(t2 t3)
@@ -737,10 +737,7 @@ EXPLAIN (costs off) SELECT * FROM t1, t2;
 INFO:  pg_hint_plan: hint syntax error at or near "Leading(((t1 t2)))
  "
 DETAIL:  Leading hint requires two sets of relations when parentheses nests.
-INFO:  pg_hint_plan: hint syntax error at or near "Leading(((t1 t2)))
- "
-DETAIL:  Leading hint requires two sets of relations when parentheses nests.
-LOG:  2024-04-25 11:00:56:157020 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:725788 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 ]",
@@ -767,10 +764,7 @@ EXPLAIN (costs off) SELECT * FROM t1, t2, t3, t4;
 INFO:  pg_hint_plan: hint syntax error at or near "Leading((t1 (t2 t3 t4)))
  "
 DETAIL:  Leading hint requires two sets of relations when parentheses nests.
-INFO:  pg_hint_plan: hint syntax error at or near "Leading((t1 (t2 t3 t4)))
- "
-DETAIL:  Leading hint requires two sets of relations when parentheses nests.
-LOG:  2024-04-25 11:00:56:174073 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:746565 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 ]",
@@ -808,7 +802,7 @@ LOG:  statement: /*+
   Leading(((t1 t5) (t2 t4)))
 */
 EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
-LOG:  2024-04-25 11:00:56:193648 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:769904 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:((t1 t5) (t2 t4))
@@ -851,7 +845,7 @@ LOG:  statement: /*+
   Leading(((t1 t3) (t2 t4)))
 */
 EXPLAIN (costs off) SELECT * FROM t1, (SELECT * FROM t2, t3, t4 LIMIT 42) AS q, t5;
-LOG:  2024-04-25 11:00:56:208918 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:789581 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:((t1 t3) (t2 t4))
@@ -896,7 +890,7 @@ LOG:  statement: /*+
   Leading((t2 t1))
 */
 EXPLAIN (costs off) SELECT * FROM t1, t2;
-LOG:  2024-04-25 11:00:56:212116 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:793904 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t1 t2)
 Un-Used Hints:
@@ -921,7 +915,7 @@ LOG:  statement: /*+
     Leading((((t5 t4) (t1 t3)) t2))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
-LOG:  2024-04-25 11:00:56:216501 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:799394 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(((t5 t4) (t1 t3)) t2)
 Un-Used Hints:
@@ -958,7 +952,7 @@ LOG:  statement: /*+
     Leading(((t5 t4) (t1 t3)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1, t2, t3, t4, t5;
-LOG:  2024-04-25 11:00:56:222449 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:809330 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:((t5 t4) (t1 t3))
 Un-Used Hints:
@@ -995,7 +989,7 @@ LOG:  statement: /*+
     Leading((t2 t1))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
-LOG:  2024-04-25 11:00:56:240597 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:830917 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t2 t1)
 Un-Used Hints:
@@ -1033,7 +1027,7 @@ LOG:  statement: /*+
     Leading((t5 (((t4 t3) t2) t1)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a, t4, t5;
-LOG:  2024-04-25 11:00:56:250858 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:842164 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t5 (((t4 t3) t2) t1))
 Un-Used Hints:
@@ -1070,7 +1064,7 @@ LOG:  statement: /*+
     Leading((t5 (((t4 t3) t2) t1)))
  */
 EXPLAIN (costs off) SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a=t2.a JOIN t3 ON t3.a=t1.a+1 AND t3.a>42, t4, t5;
-LOG:  2024-04-25 11:00:56:259838 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:856438 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t5 (((t4 t3) t2) t1))
 Un-Used Hints:
@@ -1115,7 +1109,7 @@ LOG:  statement: /*+
   Leading((t1 (t2 t5)))
 */
 EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
-LOG:  2024-04-25 11:00:56:267583 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:866486 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t3 t4)
 JoinHint:(t1 (t2 t5))
@@ -1158,7 +1152,7 @@ LOG:  statement: /*+
   Leading(t1 t2 t5)
 */
 EXPLAIN (costs off) SELECT * FROM t4, t3, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
-LOG:  2024-04-25 11:00:56:277331 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:878402 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t3 t4)
 JoinHint:t1 t2 t5
@@ -1200,7 +1194,7 @@ LOG:  statement: /*+
   Leading((t1 (t2 t5)))
 */
 EXPLAIN (costs off) SELECT * FROM (SELECT * FROM t4, t3 LIMIT 1) p, (SELECT * FROM t1, t2, t5 LIMIT 42) q;
-LOG:  2024-04-25 11:00:56:286015 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:890434 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:(t3 t4)
 JoinHint:(t1 (t2 t5))
@@ -1250,7 +1244,7 @@ LOG:  statement: /*+
     Leading(t1 t2 t3)
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:291240 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:897127 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:t1 t2 t3
 Un-Used Hints:
@@ -1279,7 +1273,7 @@ LOG:  statement: /*+
     Leading(t3 t2 t1)
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2, t3;
-LOG:  2024-04-25 11:00:56:295933 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:902750 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 JoinHint:t3 t2 t1
 Un-Used Hints:
@@ -1309,7 +1303,7 @@ LOG:  statement: /*+
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2 LEFT JOIN t3 ON t2.a=t3.a;
-LOG:  2024-04-25 11:00:56:300433 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:908415 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:((t3 t2) t1)
@@ -1337,7 +1331,7 @@ LOG:  statement: /*+
     Leading(((t3 t2) t1))
  */
 EXPLAIN (costs off) SELECT * FROM t1, t2 RIGHT JOIN t3 ON t2.a=t3.a;
-LOG:  2024-04-25 11:00:56:304922 CDT,THD000,TRACE,"PlanHint: [
+LOG:  2024-05-07 18:38:22:914193 CDT,THD000,TRACE,"PlanHint: [
 Used Hints:
 Un-Used Hints:
 JoinHint:((t3 t2) t1)
@@ -1813,4 +1807,4 @@ EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a NOT IN (SELECT t2.a FROM t2);
 
 RESET client_min_messages;
 LOG:  statement: RESET client_min_messages;
-RESET optimizer_pg_hint_plan_debug_print;
+RESET pg_hint_plan.debug_print;

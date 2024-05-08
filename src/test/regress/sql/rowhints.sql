@@ -38,7 +38,7 @@ ANALYZE my_table, your_table, our_table;
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 
 SET client_min_messages TO log;
-SET optimizer_pg_hint_plan_debug_print TO ON;
+SET pg_hint_plan.debug_print TO ON;
 
 -- Replace timestamp while logging with static string
 -- start_matchsubs
@@ -205,7 +205,7 @@ EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3
 \! sql/maskout.sh results/pg_hint_plan.tmpout
 
 RESET client_min_messages;
-RESET optimizer_pg_hint_plan_debug_print;
+RESET pg_hint_plan.debug_print;
 -- Clean Up
 DROP TABLE foo;
 DROP TABLE bar;
