@@ -3258,11 +3258,15 @@ pg_hint_plan_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		current_hint_retrieved = false;
 	}
 
-	/* Print hint in debug mode. */
-	if (debug_level == 1)
-		HintStateDump(current_hint_state);
-	else if (debug_level > 1)
-		HintStateDump2(current_hint_state);
+	/* Print hint logs if Planner is used */
+	if (result->planGen == PLANGEN_PLANNER)
+	{
+		/* Print hint in debug mode. */
+		if (debug_level == 1)
+		         HintStateDump(current_hint_state);
+		else if (debug_level > 1)
+		         HintStateDump2(current_hint_state);
+	}
 
 	/*
 	 * Rollback changes of GUC parameters, and pop current hint context from
@@ -5047,6 +5051,7 @@ static void *
 external_plan_hint_hook(Query *parse)
 {
 	HintState *hstate;
+	debug_level_orca_copy = debug_level;
 
 	if (parse == NULL)
 		return NULL;
@@ -5058,6 +5063,7 @@ external_plan_hint_hook(Query *parse)
 		return NULL;
 
 	hstate = create_hintstate(parse, pstrdup(current_hint_str));
+	planner_hook = NULL;
 	return hstate;
 }
 #endif
