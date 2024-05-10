@@ -235,7 +235,7 @@ static unsigned int qno = 0;
 static unsigned int msgqno = 0;
 static char qnostr[32];
 static const char *current_hint_str = NULL;
-static HintState *hintState = NULL;
+static HintState *hstate = NULL;
 
 /*
  * However we usually take a hint stirng in post_parse_analyze_hook, we still
@@ -388,7 +388,7 @@ struct HintState
 	GucContext		context;			/* which GUC parameters can we set? */
 	RowsHint	  **rows_hints;			/* parsed Rows hints */
 	ParallelHint  **parallel_hints;		/* parsed Parallel hints */
-	int                  log_level;
+	int				log_level;		/* debug_print log level */
 };
 
 /*
@@ -3161,10 +3161,10 @@ pg_hint_plan_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		goto standard_planner_proc;
 
 	/* parse the hint into hint state struct */
-	hintState = create_hintstate(parse, pstrdup(current_hint_str));
+	hstate = create_hintstate(parse, pstrdup(current_hint_str));
 
 	/* run standard planner if the statement has not valid hint */
-	if (!hintState)
+	if (!hstate)
 		goto standard_planner_proc;
 
 	/*
@@ -3173,7 +3173,7 @@ pg_hint_plan_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	 * PG_TRY/PG_CATCH block below to ensure a consistent stack handling all
 	 * the time.
 	 */
-	push_hint(hintState);
+	push_hint(hstate);
 
 	/*  Set scan enforcement here. */
 	save_nestlevel = NewGUCNestLevel();
@@ -5060,8 +5060,8 @@ external_plan_hint_hook(Query *parse)
 	if (!current_hint_str)
 		return NULL;
 
-	if(!hintState)
-		hintState->log_level = debug_level;
-	return hintState;
+	if(!hstate)
+		hstate->log_level = debug_level;
+	return hstate;
 }
 #endif
