@@ -505,7 +505,7 @@ CPlanHint::OsPrint(IOstream &os) const
 	}
 
 	os << "\n";
-	os << "Used Hints:";
+	os << "used hint:";
 	os << "\n";
 	for (ULONG ul = 0; ul < m_scan_hints->Size(); ul++)
 	{
@@ -530,7 +530,7 @@ CPlanHint::OsPrint(IOstream &os) const
 			(*m_join_hints)[ul]->OsPrint(os) << "\n";
 		}
 	}
-	os << "Un-Used Hints:";
+	os << "not used hint:";
 	os << "\n";
 	for (ULONG ul = 0; ul < m_scan_hints->Size(); ul++)
 	{

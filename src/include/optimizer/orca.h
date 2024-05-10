@@ -17,8 +17,6 @@
 #ifndef ORCA_H
 #define ORCA_H
 
-#include "nodes/parsenodes.h"
-#include "nodes/plannodes.h"
 #include "pg_config.h"
 
 #ifdef USE_ORCA
@@ -30,7 +28,6 @@ extern Node *transformGroupedWindows(Node *node, void *context);
 typedef void *(*plan_hint_hook_type) (Query *parse);
 extern PGDLLIMPORT plan_hint_hook_type plan_hint_hook;
 
-extern PGDLLIMPORT int debug_level_orca_copy;
 
 #endif
 

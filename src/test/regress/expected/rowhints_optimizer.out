@@ -65,9 +65,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:686209 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2,t3 #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -97,9 +97,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:717215 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2,t3 +123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -129,9 +129,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:738492 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2,t3 -123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -161,9 +161,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:758885 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2,t3 *123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -198,9 +198,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT * FROM my_table, (SELECT * FROM your_table) AS q;
 LOG:  2024-05-07 18:31:55:774182 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: my_table,your_table #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -229,9 +229,9 @@ LOG:  statement: /*+
  */
 EXPLAIN WITH cte AS (SELECT * FROM my_table, (SELECT * FROM your_table) as q) SELECT * FROM cte;
 LOG:  2024-05-07 18:31:55:788695 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: my_table,your_table #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -261,9 +261,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:803571 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2 #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -293,9 +293,9 @@ LOG:  statement: /*+
  */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:817837 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2 *123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -328,9 +328,9 @@ Rows(t1 t2 #123)
 */
 EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a IN (SELECT t2.a FROM our_table t2);
 LOG:  2024-05-07 18:31:55:837804 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2 #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -355,9 +355,9 @@ Rows(t1 t2 #123)
 */
 EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a NOT IN (SELECT t2.a FROM our_table t2);
 LOG:  2024-05-07 18:31:55:854077 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2 #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -394,9 +394,9 @@ Rows(t1 t2 #123)
 */
 EXPLAIN SELECT * FROM my_table AS t1 WHERE t1.a NOT IN (SELECT t2.a FROM our_table t2);
 LOG:  2024-05-07 18:31:55:873694 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: t1,t2 #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -449,9 +449,9 @@ Rows(f b #123)
 */
 EXPLAIN SELECT (SELECT a FROM foo AS f) FROM bar AS b;
 LOG:  2024-05-07 18:31:55:932717 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
+used hint:
 RowHint: b,f #123.000000
-Un-Used Hints:
+not used hint:
 ]",
 \o
 \! sql/maskout.sh results/pg_hint_plan.tmpout
@@ -481,8 +481,8 @@ Rows(y z #123)
 */
 EXPLAIN SELECT t1.a, t2.a FROM my_table AS t1, your_table AS t2, our_table AS t3;
 LOG:  2024-05-07 18:31:55:959134 CDT,THD000,TRACE,"PlanHint: [
-Used Hints:
-Un-Used Hints:
+used hint:
+not used hint:
 RowHint: y,z #123.000000
 ]",
 \o
