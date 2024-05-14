@@ -567,7 +567,8 @@ CPlanHint::OsPrint(IOstream &os) const
 
 	for (ULONG ul = 0; ul < m_join_type_hints->Size(); ul++)
 	{
-		if ((*m_join_type_hints)[ul]->GetHintStatus() == IHint::HINT_STATE_NOTUSED)
+		if ((*m_join_type_hints)[ul]->GetHintStatus() ==
+			IHint::HINT_STATE_NOTUSED)
 		{
 			(*m_join_type_hints)[ul]->OsPrint(os) << "\n";
 		}
