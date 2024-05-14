@@ -1044,6 +1044,7 @@ HintStateCreate(void)
 	hstate->set_hints = NULL;
 	hstate->rows_hints = NULL;
 	hstate->parallel_hints = NULL;
+	hstate->log_level = 0;
 
 	return hstate;
 }
@@ -5060,7 +5061,7 @@ external_plan_hint_hook(Query *parse)
 	if (!current_hint_str)
 		return NULL;
 
-	if(!hstate)
+	if(hstate)
 		hstate->log_level = debug_level;
 	return hstate;
 }

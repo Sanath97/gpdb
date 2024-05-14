@@ -2740,6 +2740,26 @@ error hint:
  Optimizer: Postgres-based planner
 (4 rows)
 
+-- Invalid Scan type to test Hint logging behavior
+/*+
+ NoBitmap(t1)
+*/
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+LOG:  statement: /*+
+ NoBitmap(t1)
+*/
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+INFO:  pg_hint_plan: hint syntax error at or near "NoBitmap(t1)
+"
+DETAIL:  Unrecognized hint keyword "NoBitmap".
+                QUERY PLAN
+------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Seq Scan on my_table t1
+         Filter: (a < 42)
+ Optimizer: Postgres-based planner
+(4 rows)
+
 RESET client_min_messages;
 LOG:  statement: RESET client_min_messages;
 RESET pg_hint_plan.debug_print;

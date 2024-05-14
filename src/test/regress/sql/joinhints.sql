@@ -450,5 +450,19 @@ EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2);
  */
 EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a NOT IN (SELECT t2.a FROM t2);
 
+-- Test planhints logging for JoinTypeHints
+
+-- Missing alias in hint to test 'not used' hints logging
+/*+
+    HashJoin(y z)
+ */
+EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a NOT IN (SELECT t2.a FROM t2);
+
+-- Invalid JoinHint type to test Hint logging behavior
+/*+
+  InvalidJoinTypeHint(t1)
+*/
+EXPLAIN (COSTS off) SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2);
+
 RESET client_min_messages;
 RESET pg_hint_plan.debug_print;

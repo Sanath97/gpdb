@@ -570,5 +570,11 @@ EXPLAIN (costs off) SELECT t1.a, t1.b FROM my_table AS t1 WHERE NOT EXISTS (SELE
     NoIndexScan(z) SeqScan(y)
  */
 EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+-- Invalid Scan type to test Hint logging behavior
+/*+
+ NoBitmap(t1)
+*/
+EXPLAIN (costs off) SELECT t1.a FROM my_table AS t1 WHERE t1.a<42;
+
 RESET client_min_messages;
 RESET pg_hint_plan.debug_print;
